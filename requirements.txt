@@ -1,0 +1,67 @@
+google-cloud-documentai>=2.18.0
+google-cloud-core>=2.3.3
+google-api-core>=2.14.0
+
+pdfplumber>=0.11.0
+pdf2image>=1.16.3
+pillow>=10.0.0
+
+openai>=1.6.1
+
+pydantic[email]>=2.0.0
+email-validator>=2.0.0
+
+fastapi>=0.100.0
+python-multipart>=0.0.6
+uvicorn[standard]>=0.27.0
+python-dotenv>=1.0.0
+
+# PostgreSQL (binary includes bundled libpq — no system lib needed)
+psycopg[binary]>=3.1.0
+psycopg-binary>=3.1.0
+
+# LangGraph checkpointing
+langgraph>=0.1.0
+langgraph-checkpoint-postgres>=1.0.0
+
+# LangChain for agent/tools
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+
+# FAISS for vector search (legacy - consider migrating to pgvector)
+faiss-cpu>=1.7.4
+
+# Authentication & Security
+bcrypt>=4.0.0
+PyJWT>=2.8.0
+cryptography>=41.0.0  # For field-level encryption (AES-GCM)
+pyotp>=2.9.0  # For TOTP 2FA authentication
+qrcode>=7.4.2  # For generating 2FA QR codes
+user-agents>=2.2.0  # For parsing user agent strings (device tracking)
+
+# pgvector for PostgreSQL vector storage (replaces FAISS)
+# Note: Also requires pgvector extension in PostgreSQL
+pgvector>=0.2.0
+
+# LiveKit for voice modes (Agent Worker)
+livekit-api>=0.6.0
+httpx>=0.27.0  # For async HTTP calls in agent
+
+# Web scraping for knowledge base URL import
+beautifulsoup4>=4.12.0
+pypdf>=4.0.0
+websockets>=12.0
+
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+ruff>=0.1.0
+
+# Optional but recommended for images / TIFF
+pytesseract>=0.3.10
+opencv-python>=4.8.0.0
+
+# For CLI debugging / color output (optional)
+rich>=13.0.0

@@ -1,0 +1,198 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.75rem;
+  /* MedicAI Color System - White, Black, Green */
+  --background: #FFFFFF;
+  --foreground: #111111;
+  --card: #FFFFFF;
+  --card-foreground: #111111;
+  --popover: #FFFFFF;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F9F9F9;
+  --secondary-foreground: #111111;
+  --muted: #F5F5F5;
+  --muted-foreground: #6B7280;
+  --accent: #D5E8CF;
+  --accent-foreground: #111111;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E5E5;
+  --input: #E5E5E5;
+  --ring: #D5E8CF;
+  
+  /* MedicAI Green Palette */
+  --medicai-green: #D5E8CF;
+  --medicai-green-dark: #D5E8CF;
+  --medicai-green-darker: #8FBF7F;
+  --medicai-green-light: #E8F3E4;
+  --medicai-green-lighter: #F4F9F2;
+  
+  /* Semantic Colors - All based on green/gray/black */
+  --success: #D5E8CF;
+  --success-foreground: #111111;
+  --warning: #6B7280;
+  --warning-foreground: #FFFFFF;
+  --info: #D5E8CF;
+  --info-foreground: #111111;
+  
+  /* Status Colors - Monochromatic with green accent */
+  --status-active: #D5E8CF;
+  --status-pending: #E5E5E5;
+  --status-urgent: #111111;
+  --status-complete: #D5E8CF;
+  
+  /* SOAP Note Colors - Green-based gradient */
+  --soap-s: #E8F3E4;
+  --soap-s-border: #D5E8CF;
+  --soap-o: #D5E8CF;
+  --soap-o-border: #8FBF7F;
+  --soap-a: #C5DDB8;
+  --soap-a-border: #7AAF69;
+  --soap-p: #D5E8CF;
+  --soap-p-border: #6B9F5A;
+  
+  /* Chart colors - Green-based */
+  --chart-1: #D5E8CF;
+  --chart-2: #D5E8CF;
+  --chart-3: #8FBF7F;
+  --chart-4: #6B9F5A;
+  --chart-5: #4A7F3A;
+  
+  /* Sidebar */
+  --sidebar: #FAFAFA;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: #111111;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #D5E8CF;
+  --sidebar-accent-foreground: #111111;
+  --sidebar-border: #E5E5E5;
+  --sidebar-ring: #D5E8CF;
+}
+
+.dark {
+  --background: #111111;
+  --foreground: #F5F5F5;
+  --card: #1A1A1A;
+  --card-foreground: #F5F5F5;
+  --popover: #1A1A1A;
+  --popover-foreground: #F5F5F5;
+  --primary: #F5F5F5;
+  --primary-foreground: #111111;
+  --secondary: #262626;
+  --secondary-foreground: #F5F5F5;
+  --muted: #262626;
+  --muted-foreground: #9CA3AF;
+  --accent: #3D5A36;
+  --accent-foreground: #F5F5F5;
+  --destructive: #DC2626;
+  --destructive-foreground: #F5F5F5;
+  --border: #333333;
+  --input: #333333;
+  --ring: #3D5A36;
+  
+  /* MedicAI Green Palette - Dark */
+  --medicai-green: #3D5A36;
+  --medicai-green-dark: #2D4328;
+  --medicai-green-darker: #1E2D1A;
+  --medicai-green-light: #4A6B42;
+  --medicai-green-lighter: #5A7C52;
+  
+  /* Semantic Colors - Dark */
+  --success: #3D5A36;
+  --success-foreground: #F5F5F5;
+  --warning: #9CA3AF;
+  --warning-foreground: #111111;
+  --info: #4A6B42;
+  --info-foreground: #F5F5F5;
+  
+  /* Status Colors - Dark */
+  --status-active: #3D5A36;
+  --status-pending: #333333;
+  --status-urgent: #F5F5F5;
+  --status-complete: #4A6B42;
+  
+  /* SOAP Note Colors - Dark */
+  --soap-s: #1E2D1A;
+  --soap-s-border: #3D5A36;
+  --soap-o: #2D4328;
+  --soap-o-border: #4A6B42;
+  --soap-a: #3D5A36;
+  --soap-a-border: #5A7C52;
+  --soap-p: #4A6B42;
+  --soap-p-border: #6B9F5A;
+  
+  /* Chart colors - Dark */
+  --chart-1: #3D5A36;
+  --chart-2: #4A6B42;
+  --chart-3: #5A7C52;
+  --chart-4: #6B9F5A;
+  --chart-5: #8FBF7F;
+  
+  /* Sidebar - Dark */
+  --sidebar: #1A1A1A;
+  --sidebar-foreground: #F5F5F5;
+  --sidebar-primary: #D5E8CF;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-border: #333333;
+  --sidebar-ring: #3D5A36;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

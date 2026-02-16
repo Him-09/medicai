@@ -1,0 +1,45 @@
+# ── Version control ──
+.git
+.gitignore
+
+# ── Python artifacts ──
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# ── Virtual environments ──
+.venv
+venv
+env
+
+# ── Environment / secrets ──
+.env
+.env.*
+!.env.production
+
+# ── Node / Frontend build artifacts ──
+node_modules
+frontend/node_modules
+frontend/.next
+
+# ── IDE ──
+.vscode
+.idea
+*.swp
+*.swo
+
+# ── OS files ──
+Thumbs.db
+.DS_Store
+nul
+
+# ── Backups (large, don't include in image) ──
+backups/
+
+# ── Dev / test only ──
+tests/
+requirements-dev.txt
