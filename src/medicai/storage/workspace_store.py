@@ -1,14 +1,9 @@
-"""
-Workspace storage - persists consultation workspace state.
-"""
 from typing import Optional, Dict, Any, Union
 import json
 from datetime import datetime
 from medicai.storage.postgres import get_conn
 
-
 def init_workspace_table() -> None:
-    """Create workspace table if it doesn't exist."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -35,7 +30,6 @@ def init_workspace_table() -> None:
             )
         conn.commit()
 
-
 def save_workspace(
     *,
     consultation_id: str,
@@ -46,16 +40,10 @@ def save_workspace(
     hpi: Optional[Dict[str, Any]] = None,
     problems: Optional[list] = None,
     quick_notes: Optional[list] = None,
-    orders: Optional[Union[list, dict]] = None,  # Can be list (old) or dict (new WorkspaceOrders)
+    orders: Optional[Union[list, dict]] = None,
 ) -> Dict[str, Any]:
-    """
-    Save or update workspace state for consultation.
-    Uses upsert to create or update.
-    clinic_id is resolved from the consultation if not provided.
-    """
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Resolve clinic_id from consultation if not explicitly provided
             if not clinic_id:
                 cur.execute(
                     "SELECT clinic_id FROM consultations WHERE id = %s",
@@ -112,9 +100,7 @@ def save_workspace(
         "updated_at": row[9].isoformat() if row[9] else None,
     }
 
-
 def get_workspace(consultation_id: str) -> Optional[Dict[str, Any]]:
-    """Get workspace state for consultation."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -143,9 +129,7 @@ def get_workspace(consultation_id: str) -> Optional[Dict[str, Any]]:
         "updated_at": row[9].isoformat() if row[9] else None,
     }
 
-
 def delete_workspace(consultation_id: str) -> bool:
-    """Delete workspace for consultation."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(

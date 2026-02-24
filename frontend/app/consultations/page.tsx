@@ -4,11 +4,11 @@ import { useConsultations, useCreateConsultation, usePatients, useUpdateConsulta
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Plus, 
-  MoreVertical, 
-  XCircle, 
-  CalendarIcon, 
+import {
+  Plus,
+  MoreVertical,
+  XCircle,
+  CalendarIcon,
   ArrowRight,
   FileText,
   Clock,
@@ -61,22 +61,19 @@ export default function ConsultationsPage() {
   const { mutate: createConsultation, isPending } = useCreateConsultation();
   const { mutate: updateConsultation } = useUpdateConsultation();
   const { mutate: cancelConsultation } = useCancelConsultation();
-  // Summary Sheet State
+
   const [summarySheetOpen, setSummarySheetOpen] = useState(false);
   const [viewingConsultationId, setViewingConsultationId] = useState<string | null>(null);
-  
-  // Fetch consultation summary when viewing
+
   const { data: consultationSummary, isLoading: summaryLoading } = useConsultationSummary(
     viewingConsultationId || '',
     { enabled: !!viewingConsultationId && summarySheetOpen }
   );
-  
-  // Filters
+
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'canceled'>('all');
   const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Dialog states
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [reschedulingConsultation, setReschedulingConsultation] = useState<any>(null);
@@ -88,11 +85,10 @@ export default function ConsultationsPage() {
   const [rescheduleTime, setRescheduleTime] = useState<string>('09:00');
   const [error, setError] = useState<string>('');
 
-  // Format time in a more readable way
   const formatConsultationTime = (dateStr: string | undefined) => {
     if (!dateStr) return 'Non programmé';
     const date = new Date(dateStr);
-    
+
     if (isToday(date)) {
       return `Aujourd'hui · ${format(date, 'HH:mm')}`;
     }
@@ -102,17 +98,15 @@ export default function ConsultationsPage() {
     if (isTomorrow(date)) {
       return `Demain · ${format(date, 'HH:mm')}`;
     }
-    
+
     return `${format(date, 'd MMM')} · ${format(date, 'HH:mm')}`;
   };
 
-  // Get patient info for consultation
   const getPatientInfo = (consultation: any) => {
     const patientId = consultation.patientId?.replace('#', '');
     return patients?.find(p => p.id === patientId);
   };
 
-  // Calculate age from DOB
   const calculateAge = (dob: string) => {
     if (!dob) return null;
     const birthDate = new Date(dob);
@@ -123,74 +117,67 @@ export default function ConsultationsPage() {
     return age;
   };
 
-  // Filter and sort consultations
   const filteredConsultations = useMemo(() => {
     if (!consultations) return [];
-    
+
     let filtered = consultations.filter((consultation) => {
-      // Status filter
+
       if (statusFilter !== 'all' && consultation.status !== statusFilter) {
         return false;
       }
-      
-      // Date filter
+
       if (dateFilter !== 'all' && consultation.consultationTime) {
         const consultDate = new Date(consultation.consultationTime);
         const now = new Date();
         const daysDiff = differenceInDays(consultDate, now);
-        
+
         if (dateFilter === 'today' && !isToday(consultDate)) return false;
         if (dateFilter === '7d' && (daysDiff < -7 || daysDiff > 7)) return false;
         if (dateFilter === '30d' && (daysDiff < -30 || daysDiff > 30)) return false;
       }
-      
-      // Search filter
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesPatient = consultation.patientName.toLowerCase().includes(query);
         const matchesName = consultation.name?.toLowerCase().includes(query);
         return matchesPatient || matchesName;
       }
-      
+
       return true;
     });
-    
-    // Sort: Active first, then by time (upcoming first, then recent)
+
     return filtered.sort((a, b) => {
-      // Active consultations first
+
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (b.status === 'active' && a.status !== 'active') return 1;
-      
-      // Then by consultation time
+
       const timeA = a.consultationTime ? new Date(a.consultationTime).getTime() : 0;
       const timeB = b.consultationTime ? new Date(b.consultationTime).getTime() : 0;
-      
-      // For active: upcoming first
+
       if (a.status === 'active' && b.status === 'active') {
         return timeA - timeB;
       }
-      
-      // For others: most recent first
+
       return timeB - timeA;
     });
   }, [consultations, statusFilter, dateFilter, searchQuery]);
 
   const handleCreateConsultation = () => {
     if (!selectedPatientId) return;
-    
+
     const hasActiveConsultation = consultations?.some(
       (c) => c.patientId === `#${selectedPatientId}` && c.status === 'active'
     );
-    
+
     if (hasActiveConsultation) {
       setError('Ce patient a déjà une consultation active. Veuillez la terminer avant d\'en créer une nouvelle.');
       return;
     }
-    
+
     const [hours, minutes] = consultationTime.split(':').map(Number);
     const dateTime = new Date(consultationDate);
     dateTime.setHours(hours, minutes, 0, 0);
-    
+
     setError('');
     createConsultation(
       { patientId: selectedPatientId, name: consultationName || undefined, consultationTime: dateTime },
@@ -221,15 +208,15 @@ export default function ConsultationsPage() {
 
   const handleUpdateReschedule = () => {
     if (!reschedulingConsultation) return;
-    
+
     const [hours, minutes] = rescheduleTime.split(':').map(Number);
     const dateTime = new Date(rescheduleDate);
     dateTime.setHours(hours, minutes, 0, 0);
-    
+
     updateConsultation(
-      { 
-        id: reschedulingConsultation.id, 
-        data: { consultation_time: dateTime } 
+      {
+        id: reschedulingConsultation.id,
+        data: { consultation_time: dateTime }
       },
       {
         onSuccess: () => {
@@ -311,7 +298,7 @@ export default function ConsultationsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Motif (Optionnel)</label>
                 <input
@@ -336,7 +323,7 @@ export default function ConsultationsPage() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date</label>
                 <div className="flex gap-2 mb-2">
@@ -399,8 +386,8 @@ export default function ConsultationsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button 
-                onClick={handleCreateConsultation} 
+              <Button
+                onClick={handleCreateConsultation}
                 disabled={!selectedPatientId || isPending}
                 className="w-full"
               >
@@ -493,7 +480,7 @@ export default function ConsultationsPage() {
             <TabsTrigger value="canceled">Annulées</TabsTrigger>
           </TabsList>
         </Tabs>
-        
+
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Période:</span>
           <div className="flex gap-1">
@@ -530,7 +517,7 @@ export default function ConsultationsPage() {
               .map((n) => n[0])
               .join('')
               .toUpperCase();
-            
+
             const patient = getPatientInfo(consultation);
             const age = patient ? calculateAge(patient.dob) : null;
             const hasProblems = patient?.active_problems && patient.active_problems.length > 0;
@@ -553,7 +540,7 @@ export default function ConsultationsPage() {
                       </div>
                     </div>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={consultation.status === 'active' ? 'default' : 'outline'}
                     className={cn(
                       "text-xs flex-shrink-0",
@@ -634,7 +621,7 @@ export default function ConsultationsPage() {
                             Reprogrammer
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleCancelConsultation(consultation.id)}
                             className="text-destructive"
                           >
@@ -662,8 +649,6 @@ export default function ConsultationsPage() {
         </div>
       </div>
 
-
-
     {/* Consultation Summary Sheet */}
     <Sheet open={summarySheetOpen} onOpenChange={(open: boolean) => {
       setSummarySheetOpen(open);
@@ -681,7 +666,7 @@ export default function ConsultationsPage() {
             Synthèse clinique de la consultation
           </SheetDescription>
         </SheetHeader>
-        
+
         <ScrollArea className="flex-1 min-h-0">
           {summaryLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -693,7 +678,7 @@ export default function ConsultationsPage() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarIcon className="h-4 w-4" />
                 <span>
-                  {consultationSummary.created_at 
+                  {consultationSummary.created_at
                     ? new Date(consultationSummary.created_at).toLocaleDateString('fr-FR', {
                         weekday: 'long',
                         year: 'numeric',
@@ -952,7 +937,7 @@ export default function ConsultationsPage() {
                         </div>
                       )}
 
-                      {/* Quick notes */}
+                      {}
                       {parsed.quick_notes && parsed.quick_notes.length > 0 && (
                         <div className="border rounded-lg p-4 space-y-2">
                           <h3 className="font-medium text-sm flex items-center gap-2">
@@ -970,14 +955,13 @@ export default function ConsultationsPage() {
                   );
                 }
 
-                // --- Legacy plain-text rendering (v1) ---
                 if (consultationSummary.summary) {
                   return (
                     <div className="space-y-4">
                       {consultationSummary.summary.split('\n\n').map((section: string, idx: number) => {
                         const lines = section.split('\n');
                         const firstLine = lines[0] || '';
-                        
+
                         if (firstLine.startsWith('Visit:')) {
                           return (
                             <div key={idx} className="bg-[var(--medicai-green-light)] border border-[var(--medicai-green)]/40 rounded-lg p-4">
@@ -989,7 +973,7 @@ export default function ConsultationsPage() {
                             </div>
                           );
                         }
-                        
+
                         if (firstLine.startsWith('HPI:')) {
                           return (
                             <div key={idx} className="border rounded-lg p-4">
@@ -1004,7 +988,7 @@ export default function ConsultationsPage() {
                             </div>
                           );
                         }
-                        
+
                         if (firstLine.startsWith('Problem:')) {
                           return (
                             <div key={idx} className="border rounded-lg p-4">
@@ -1023,7 +1007,7 @@ export default function ConsultationsPage() {
                             </div>
                           );
                         }
-                        
+
                         return (
                           <div key={idx} className="bg-muted/50 rounded-lg p-4">
                             <p className="text-sm whitespace-pre-wrap">{section}</p>

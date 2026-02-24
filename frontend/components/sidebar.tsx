@@ -25,19 +25,18 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  
-  // Get user initials for avatar
-  const initials = user?.email 
-    ? user.email.substring(0, 2).toUpperCase() 
+
+  const initials = user?.email
+    ? user.email.substring(0, 2).toUpperCase()
     : 'DR';
 
   return (
     <div className="flex h-screen w-16 flex-col items-center border-r bg-muted/50 py-4">
-      {/* Main Navigation */}
+      {}
       <div className="flex flex-col items-center space-y-2">
         {navigation.map((item) => {
-          const isActive = item.href === '/' 
-            ? pathname === '/' 
+          const isActive = item.href === '/'
+            ? pathname === '/'
             : pathname.startsWith(item.href);
           return (
             <Link
@@ -57,12 +56,12 @@ export function Sidebar() {
         })}
       </div>
 
-      {/* Spacer */}
+      {}
       <div className="flex-1" />
 
-      {/* Bottom Section */}
+      {}
       <div className="flex flex-col items-center space-y-2">
-        {/* Profile Dropdown */}
+        {}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:cursor-pointer">
@@ -113,7 +112,7 @@ export function Sidebar() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={logout}
               className="text-destructive focus:text-destructive cursor-pointer"
             >

@@ -2,7 +2,6 @@
 
 import { Sidebar } from "@/components/sidebar";
 import { useAuth } from "@/components/auth-provider";
-import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 export default function AppLayout({
   children,
@@ -11,7 +10,6 @@ export default function AppLayout({
 }) {
   const { isAuthenticated } = useAuth();
 
-  // Only show sidebar layout for authenticated users
   if (!isAuthenticated) {
     return <>{children}</>;
   }
@@ -22,8 +20,6 @@ export default function AppLayout({
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
-      {/* Global Voice Assistant - persists across all pages */}
-      <VoiceAssistant />
     </div>
   );
 }

@@ -1,7 +1,3 @@
--- Migration 009: Knowledge Base Tables
--- Stores clinical knowledge articles and collections for problem enrichment
-
--- Collections table (groups of related articles)
 CREATE TABLE IF NOT EXISTS kb_collections (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -13,7 +9,6 @@ CREATE TABLE IF NOT EXISTS kb_collections (
 
 CREATE INDEX IF NOT EXISTS idx_kb_collections_default ON kb_collections(is_default);
 
--- Articles table (clinical knowledge entries)
 CREATE TABLE IF NOT EXISTS kb_articles (
     id TEXT PRIMARY KEY,
     collection_id TEXT NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
@@ -35,7 +30,6 @@ CREATE INDEX IF NOT EXISTS idx_kb_articles_collection ON kb_articles(collection_
 CREATE INDEX IF NOT EXISTS idx_kb_articles_default ON kb_articles(is_default);
 CREATE INDEX IF NOT EXISTS idx_kb_articles_title ON kb_articles(title);
 
--- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_kb_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -44,7 +38,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers for auto-updating timestamps
 DROP TRIGGER IF EXISTS kb_collections_updated_at ON kb_collections;
 CREATE TRIGGER kb_collections_updated_at
     BEFORE UPDATE ON kb_collections

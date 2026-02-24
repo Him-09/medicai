@@ -8,7 +8,6 @@ class ConsultationCreateIn(BaseModel):
     consultation_time: Optional[datetime] = Field(default=None, description="Scheduled consultation date/time")
 
 class ConsultationUpdateIn(BaseModel):
-    """Schema for updating a consultation (partial updates allowed)"""
     name: Optional[str] = Field(None, description="Consultation name or title")
     status: Optional[Literal["active", "completed", "canceled"]] = Field(None, description="Consultation status")
     consultation_time: Optional[datetime] = Field(None, description="Scheduled consultation date/time")

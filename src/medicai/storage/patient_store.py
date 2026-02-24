@@ -3,9 +3,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 from medicai.storage.postgres import get_conn
 
-
 def init_patients_table() -> None:
-    """Create patients table if it doesn't exist."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -34,7 +32,6 @@ def init_patients_table() -> None:
                 on patients(status);
                 """
             )
-            # Add sex column if it doesn't exist (migration for existing tables)
             cur.execute(
                 """
                 DO $$ 
@@ -48,7 +45,6 @@ def init_patients_table() -> None:
                 """
             )
         conn.commit()
-
 
 def create_patient(
     *,
@@ -64,7 +60,6 @@ def create_patient(
     active_problems: Optional[List[str]] = None,
     status: str = "active",
 ) -> Dict:
-    """Create a new patient record."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -96,9 +91,7 @@ def create_patient(
         "created_at": row[11],
     }
 
-
 def get_patient(patient_id: str) -> Optional[Dict]:
-    """Get a single patient by ID."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -131,9 +124,7 @@ def get_patient(patient_id: str) -> Optional[Dict]:
         "updated_at": row[13],
     }
 
-
 def get_all_patients(status: Optional[str] = None) -> List[Dict]:
-    """Get all patients, optionally filtered by status."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             if status:
@@ -176,7 +167,6 @@ def get_all_patients(status: Optional[str] = None) -> List[Dict]:
         for row in rows
     ]
 
-
 def update_patient(
     patient_id: str,
     *,
@@ -191,7 +181,6 @@ def update_patient(
     active_problems: Optional[List[str]] = None,
     status: Optional[str] = None,
 ) -> Optional[Dict]:
-    """Update patient information."""
     updates = []
     params = []
     
@@ -229,7 +218,6 @@ def update_patient(
     if not updates:
         return get_patient(patient_id)
     
-    # If status is being set to 'archived', also set archived_at
     if status == "archived":
         updates.append("archived_at = now()")
     

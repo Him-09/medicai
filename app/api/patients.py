@@ -23,28 +23,20 @@ from medicai.storage.postgres import get_conn
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
-
 def enrich_patient_data(patient: dict, conn=None) -> dict:
-    """Enrich patient data with document count and last consultation.
-    
-    If conn is provided, reuses it. Otherwise opens a new connection.
-    """
     def _enrich(cur):
-        # Get document count
         cur.execute(
             "SELECT COUNT(*) FROM documents WHERE patient_id = %s",
             (patient["patient_id"],)
         )
         doc_count = cur.fetchone()[0]
         
-        # Get pending document count
         cur.execute(
             "SELECT COUNT(*) FROM documents WHERE patient_id = %s AND review_status = 'pending'",
             (patient["patient_id"],)
         )
         pending_count = cur.fetchone()[0]
         
-        # Get last consultation time
         cur.execute(
             "SELECT MAX(consultation_time) FROM consultations WHERE patient_id = %s",
             (patient["patient_id"],)
@@ -66,19 +58,15 @@ def enrich_patient_data(patient: dict, conn=None) -> dict:
             with conn.cursor() as cur:
                 return _enrich(cur)
 
-
 def get_all_patients_enriched(status: Optional[str] = None) -> list:
-    """Get all patients with enrichment data in a single optimized query."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Build status filter
             status_filter = ""
             params = []
             if status:
                 status_filter = "WHERE p.status = %s"
                 params.append(status)
             
-            # Single query with LEFT JOINs - avoids N+1 problem
             cur.execute(f"""
                 SELECT 
                     p.patient_id,
@@ -123,47 +111,36 @@ def get_all_patients_enriched(status: Optional[str] = None) -> list:
             patients = []
             for row in rows:
                 patient = dict(zip(columns, row))
-                # Format last_consultation as ISO string
                 if patient.get("last_consultation"):
                     patient["last_consultation"] = patient["last_consultation"].isoformat()
                 patients.append(patient)
             
             return patients
 
-
 @router.get("")
 def get_all_patients(
     status: Optional[str] = None,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get all patients, optionally filtered by status."""
-    # Use optimized single-query approach
     patients = get_all_patients_enriched(status=status)
     return {"patients": patients}
 
-
 @router.get("/{patient_id}")
 def get_patient(patient_id: str, user: Dict[str, Any] = Depends(get_current_user)):
-    """Get a single patient by ID."""
     patient = db_get_patient(patient_id)
     if not patient:
         raise HTTPException(404, f"Patient {patient_id} not found")
     audit_event(user["id"], PATIENT_VIEW, patient_id=patient_id)
     return enrich_patient_data(patient)
 
-
 @router.post("", response_model=PatientCreateOut)
 def create_patient(payload: PatientCreateIn, user: Dict[str, Any] = Depends(require_doctor_or_owner)):
-    """Create a new patient."""
-    # Generate patient ID
     patient_id = f"patient{uuid.uuid4().hex[:8]}"
     audit_event(user["id"], PATIENT_CREATE, metadata={"patient_name": payload.name})
     
-    # Create patient directory in processed data
     patient_dir = config.DATA_PROCESSED_DIR / patient_id
     patient_dir.mkdir(parents=True, exist_ok=True)
     
-    # Store patient in database
     db_create_patient(
         patient_id=patient_id,
         name=payload.name,
@@ -189,27 +166,22 @@ def create_patient(payload: PatientCreateIn, user: Dict[str, Any] = Depends(requ
         message="Patient created successfully"
     )
 
-
 @router.patch("/{patient_id}")
 def update_patient(
     patient_id: str,
     payload: PatientUpdateIn,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update patient information (partial update)."""
-    # Check if patient exists
     patient = db_get_patient(patient_id)
     if not patient:
         raise HTTPException(404, f"Patient {patient_id} not found")
     audit_event(user["id"], PATIENT_UPDATE, patient_id=patient_id)
     
-    # Prepare update data (only include fields that were provided)
     update_data = payload.model_dump(exclude_unset=True)
     
     if not update_data:
         raise HTTPException(400, "No fields to update")
     
-    # If trying to archive, check for active consultations
     if update_data.get("status") == "archived":
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -229,7 +201,6 @@ def update_patient(
                 }
             )
     
-    # Update patient in database
     updated_patient = db_update_patient(patient_id, **update_data)
     
     if not updated_patient:
@@ -237,17 +208,13 @@ def update_patient(
     
     return enrich_patient_data(updated_patient)
 
-
 @router.delete("/{patient_id}")
 def delete_patient(patient_id: str, user: Dict[str, Any] = Depends(require_doctor_or_owner)):
-    """Soft delete a patient by setting status to archived."""
-    # Check if patient exists
     patient = db_get_patient(patient_id)
     if not patient:
         raise HTTPException(404, f"Patient {patient_id} not found")
     audit_event(user["id"], PATIENT_DELETE, patient_id=patient_id)
     
-    # Check if patient has active consultations
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -266,7 +233,6 @@ def delete_patient(patient_id: str, user: Dict[str, Any] = Depends(require_docto
             }
         )
     
-    # Soft delete by setting status to archived
     updated_patient = db_update_patient(patient_id, status="archived")
     
     if not updated_patient:
@@ -278,7 +244,6 @@ def delete_patient(patient_id: str, user: Dict[str, Any] = Depends(require_docto
         "status": "archived",
         "archived_at": updated_patient.get("archived_at")
     }
-
 
 @router.get("/{patient_id}/snapshot", response_model=PatientSnapshotOut)
 def snapshot(patient_id: str):
@@ -301,25 +266,21 @@ def prep(patient_id: str):
     )
     return PrepOut(patient_id=patient_id, prep_text=prep_text)
 
-
 @router.get("/{patient_id}/changes", response_model=PatientChangesOut)
 def get_patient_changes(
     patient_id: str,
     since: str = Query("last_visit", description="Reference point: 'last_visit' or ISO datetime"),
     current_consultation_id: Optional[str] = Query(None, description="Current consultation ID to exclude")
 ):
-    """Get changes since last visit: new documents, abnormal labs, and imaging."""
     patient_id = patient_id.strip()
     if not patient_id:
         raise HTTPException(400, "patient_id is required")
     
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Determine the "since" timestamp
             since_timestamp = None
             
             if since == "last_visit":
-                # Find the last consultation before the current one
                 if current_consultation_id:
                     cur.execute("""
                         SELECT MAX(consultation_time)
@@ -329,7 +290,6 @@ def get_patient_changes(
                         AND consultation_time IS NOT NULL
                     """, (patient_id, current_consultation_id))
                 else:
-                    # If no current consultation, get the most recent one
                     cur.execute("""
                         SELECT MAX(consultation_time)
                         FROM consultations
@@ -340,13 +300,11 @@ def get_patient_changes(
                 result = cur.fetchone()
                 since_timestamp = result[0] if result else None
             else:
-                # Parse ISO datetime
                 try:
                     since_timestamp = datetime.fromisoformat(since.replace('Z', '+00:00'))
                 except ValueError:
                     raise HTTPException(400, "Invalid datetime format. Use ISO format or 'last_visit'")
             
-            # If no previous consultation, return empty changes
             if not since_timestamp:
                 return PatientChangesOut(
                     since=None,
@@ -358,7 +316,6 @@ def get_patient_changes(
             
             since_str = since_timestamp.isoformat()
             
-            # A) Get new documents since last visit
             cur.execute("""
                 SELECT doc_id, document_type, date_of_service, processed_at
                 FROM documents
@@ -377,8 +334,6 @@ def get_patient_changes(
                 for row in cur.fetchall()
             ]
             
-            # B) Get new abnormal labs since last visit
-            # First, get all abnormal results after since_timestamp
             cur.execute("""
                 SELECT test_name, value, unit, flag, date_of_service
                 FROM lab_results
@@ -390,12 +345,10 @@ def get_patient_changes(
             
             recent_abnormals = cur.fetchall()
             
-            # For each abnormal, check if it was normal before or if it worsened
             new_abnormals = []
             worsening_trends = []
             
             for test_name, value, unit, flag, date_of_service in recent_abnormals:
-                # Check previous result for this test before since_timestamp
                 cur.execute("""
                     SELECT value, flag, date_of_service
                     FROM lab_results
@@ -419,22 +372,17 @@ def get_patient_changes(
                 )
                 
                 if not previous:
-                    # No previous result - this is new data
                     lab_item.trend = "new_abnormal"
                     new_abnormals.append(lab_item)
                 elif previous[1] == 'normal':
-                    # Was normal before, now abnormal
                     lab_item.trend = "new_abnormal"
                     lab_item.previous_value = previous[0]
                     new_abnormals.append(lab_item)
                 else:
-                    # Was already abnormal - check if it worsened
-                    # Simple heuristic: if flag changed or value is more extreme
                     lab_item.trend = "worsening"
                     lab_item.previous_value = previous[0]
                     worsening_trends.append(lab_item)
             
-            # C) Get new imaging since last visit
             cur.execute("""
                 SELECT doc_id, exam_type, date_of_service, conclusion
                 FROM radiology_reports

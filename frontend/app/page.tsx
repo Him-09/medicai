@@ -6,20 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  useDashboardStats, 
-  useConsultations, 
-  usePatients, 
+import {
+  useDashboardStats,
+  useConsultations,
+  usePatients,
   usePendingDocuments,
-  useCurrentUser 
+  useCurrentUser
 } from '@/lib/hooks';
 import { useRouter } from 'next/navigation';
 import { format, formatDistanceToNow, isToday } from 'date-fns';
-import { 
-  Search, 
-  Plus, 
-  FileText, 
-  Users, 
+import {
+  Search,
+  Plus,
+  FileText,
+  Users,
   Stethoscope,
   Clock,
   ArrowRight,
@@ -35,7 +35,7 @@ export default function HomePage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
-  
+
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: consultations, isLoading: consultationsLoading } = useConsultations();
   const { data: patients, isLoading: patientsLoading } = usePatients();
@@ -51,10 +51,9 @@ export default function HomePage() {
     return 'Bonsoir';
   };
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K to focus search
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -65,7 +64,6 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  // Process consultations data
   const todaysConsultations = consultations?.filter(c => {
     if (!c.consultationTime) return false;
     return isToday(new Date(c.consultationTime));
@@ -77,8 +75,7 @@ export default function HomePage() {
 
   const activeConsultations = consultations?.filter(c => c.status === 'active') || [];
   const urgentCount = activeConsultations.length;
-  
-  // Get next upcoming consultation (today, not started yet)
+
   const now = new Date();
   const nextConsultation = todaysConsultations.find(c => {
     if (c.status !== 'active') return false;
@@ -86,12 +83,10 @@ export default function HomePage() {
     return time && time > now;
   }) || activeConsultations[0];
 
-  // Get last session to continue
   const lastSession = activeConsultations[0];
 
-  // Filter for search
   const searchResults = searchQuery.trim() ? {
-    patients: patients?.filter(p => 
+    patients: patients?.filter(p =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.patientId.toLowerCase().includes(searchQuery.toLowerCase())
     ).slice(0, 3) || [],
@@ -100,13 +95,12 @@ export default function HomePage() {
     ).slice(0, 2) || []
   } : null;
 
-  // Handle search commands
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchQuery.trim().toLowerCase();
-    
+
     if (query.startsWith('/')) {
-      // Command mode
+
       if (query === '/new consult' || query === '/consultation') {
         router.push('/consultations');
       } else if (query === '/upload') {
@@ -117,14 +111,13 @@ export default function HomePage() {
         router.push('/schedule');
       }
     } else if (searchResults?.patients?.length) {
-      // Navigate to first patient match
+
       router.push(`/patients/${searchResults.patients[0].id}`);
     }
     setSearchQuery('');
     setShowSearchResults(false);
   };
 
-  // Context-aware primary CTA
   const getPrimaryCTA = () => {
     if (urgentCount > 0) {
       return {
@@ -169,7 +162,7 @@ export default function HomePage() {
   return (
     <div className="flex-1 flex items-start justify-center p-8 pt-16">
       <div className="w-full max-w-2xl space-y-10">
-        {/* Welcome Message */}
+        {}
         <div className="text-center space-y-1">
           <h1 className="text-3xl font-normal text-foreground">
             {getGreeting()}{doctorName ? ` Dr. ${doctorName}` : ''}
@@ -199,7 +192,7 @@ export default function HomePage() {
               Ctrl+K
             </kbd>
           </div>
-          
+
           {/* Search Results Dropdown */}
           {showSearchResults && searchResults && (searchResults.patients.length > 0 || searchResults.consultations.length > 0) && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-lg shadow-lg z-50 overflow-hidden">
@@ -356,9 +349,9 @@ export default function HomePage() {
 
         {/* Primary CTA */}
         <div className="flex flex-col items-center gap-3">
-          <Button 
+          <Button
             size="lg"
-            className="px-8 py-6 text-base font-medium cursor-pointer" 
+            className="px-8 py-6 text-base font-medium cursor-pointer"
             onClick={primaryCTA.action}
           >
             {primaryCTA.label}
@@ -377,7 +370,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Quick Actions Row 
+        {/* Quick Actions Row
         <div className="flex items-center justify-center gap-6">
           <button
             className="flex flex-col items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors group"

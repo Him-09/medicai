@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { 
-  FileText, Plus, Edit, Trash2, Search, Hash, Eye, 
+import {
+  FileText, Plus, Edit, Trash2, Search, Hash, Eye,
   Upload, X, Save, Loader2, Crop, Download, Printer, Pipette,
   AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
   Check, Sparkles, FileImage, Scissors, RotateCcw
@@ -32,7 +32,6 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-// Template type configuration with variables aligned with orders
 const templateTypeConfig: Record<string, {
   label: string;
   color: string;
@@ -147,7 +146,6 @@ const templateTypeConfig: Record<string, {
   },
 };
 
-// Rich text formatting - using HTML tags for actual rendering
 const formatOptions = [
   { id: 'bold', icon: Bold, label: 'Gras', openTag: '<b>', closeTag: '</b>' },
   { id: 'italic', icon: Italic, label: 'Italique', openTag: '<i>', closeTag: '</i>' },
@@ -166,7 +164,7 @@ export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [templateForm, setTemplateForm] = useState({
@@ -177,30 +175,30 @@ export default function TemplatesPage() {
     footer_image: '',
   });
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const [uploadMode, setUploadMode] = useState<'full' | 'crop'>('crop');
-  
+
   const [showCropDialog, setShowCropDialog] = useState(false);
   const [cropTarget, setCropTarget] = useState<'header' | 'footer'>('header');
   const [uploadedImage, setUploadedImage] = useState<string>('');
   const [cropRegion, setCropRegion] = useState({ y: 0, height: 20 });
   const [isProcessing, setIsProcessing] = useState(false);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
-  
+
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
-  
+
   const [currentAlign, setCurrentAlign] = useState('left');
   const [contentBgColor, setContentBgColor] = useState('#ffffff');
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerCanvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   const fullImageInputRef = useRef<HTMLInputElement>(null);
   const headerInputRef = useRef<HTMLInputElement>(null);
   const footerInputRef = useRef<HTMLInputElement>(null);
   const cropInputRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  
+
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [isSnippetDialogOpen, setIsSnippetDialogOpen] = useState(false);
   const [newSnippet, setNewSnippet] = useState({ shortcode: '', expansion: '', category: '' });
@@ -299,7 +297,6 @@ export default function TemplatesPage() {
     reader.readAsDataURL(file);
   };
 
-  // Extract dominant background color from an image
   const extractBgColorFromImage = (imageSrc: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -314,21 +311,20 @@ export default function TemplatesPage() {
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
         ctx.drawImage(img, 0, 0);
-        
-        // Sample corners to get background color
+
         const samples = [
           ctx.getImageData(5, 5, 1, 1).data,
           ctx.getImageData(canvas.width - 5, 5, 1, 1).data,
           ctx.getImageData(5, canvas.height - 5, 1, 1).data,
           ctx.getImageData(canvas.width - 5, canvas.height - 5, 1, 1).data,
         ];
-        
+
         let r = 0, g = 0, b = 0;
         samples.forEach(s => { r += s[0]; g += s[1]; b += s[2]; });
         r = Math.round(r / 4);
         g = Math.round(g / 4);
         b = Math.round(b / 4);
-        
+
         resolve(`rgb(${r}, ${g}, ${b})`);
       };
       img.onerror = () => resolve('#ffffff');
@@ -336,7 +332,6 @@ export default function TemplatesPage() {
     });
   };
 
-  // Auto-extract background color when header image changes
   useEffect(() => {
     if (templateForm.header_image) {
       extractBgColorFromImage(templateForm.header_image).then(color => {
@@ -349,64 +344,58 @@ export default function TemplatesPage() {
 
   const processCrop = async () => {
     if (!uploadedImage) return;
-    
+
     setIsProcessing(true);
     try {
-      // Create a new image element and wait for it to load
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      
+
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = reject;
         img.src = uploadedImage;
       });
-      
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('Could not get canvas context');
-      
-      // Use full width of the image
+
       const cropY = (cropRegion.y / 100) * img.naturalHeight;
       const cropHeight = (cropRegion.height / 100) * img.naturalHeight;
-      
-      // Optimize dimensions - max width 1200px for web display
+
       const maxWidth = 1200;
       let finalWidth = img.naturalWidth;
       let finalHeight = cropHeight;
-      
+
       if (finalWidth > maxWidth) {
         const scale = maxWidth / finalWidth;
         finalWidth = maxWidth;
         finalHeight = Math.round(cropHeight * scale);
       }
-      
-      // Set canvas to optimized size
+
       canvas.width = finalWidth;
       canvas.height = finalHeight;
-      
-      // Draw the cropped region (scaled if needed)
+
       ctx.drawImage(
         img,
         0, cropY, img.naturalWidth, cropHeight,
         0, 0, finalWidth, finalHeight
       );
-      
-      // Use PNG format (no background removal)
+
       const croppedImage = canvas.toDataURL('image/png');
-      
-      // Check size and warn if still large
+
       const sizeKB = Math.round((croppedImage.length * 3) / 4 / 1024);
       if (sizeKB > 500) {
         console.warn(`Large image: ${sizeKB}KB - may take longer to upload`);
       }
-      
+
       if (cropTarget === 'header') {
         setTemplateForm(prev => ({ ...prev, header_image: croppedImage }));
       } else {
         setTemplateForm(prev => ({ ...prev, footer_image: croppedImage }));
       }
-      
+
       setShowCropDialog(false);
       setUploadedImage('');
       toast.success(`${cropTarget === 'header' ? 'En-tête' : 'Pied de page'} extrait avec succès`);
@@ -421,7 +410,7 @@ export default function TemplatesPage() {
   const openCropDialog = (target: 'header' | 'footer') => {
     setCropTarget(target);
     setUploadedImage('');
-    setCropRegion(target === 'header' 
+    setCropRegion(target === 'header'
       ? { y: 0, height: 15 }
       : { y: 85, height: 15 }
     );
@@ -452,14 +441,14 @@ export default function TemplatesPage() {
   const insertVariable = (varName: string) => {
     const variable = `{{${varName}}}`;
     const textarea = contentRef.current;
-    
+
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const text = templateForm.content;
       const newText = text.substring(0, start) + variable + text.substring(end);
       setTemplateForm(prev => ({ ...prev, content: newText }));
-      
+
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + variable.length, start + variable.length);
@@ -472,27 +461,27 @@ export default function TemplatesPage() {
   const applyFormat = (formatId: string) => {
     const textarea = contentRef.current;
     if (!textarea) return;
-    
+
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = templateForm.content.substring(start, end);
-    
+
     const format = formatOptions.find(f => f.id === formatId);
     if (!format) return;
-    
+
     let newText: string;
     if (selectedText) {
-      newText = templateForm.content.substring(0, start) + 
+      newText = templateForm.content.substring(0, start) +
                 format.openTag + selectedText + format.closeTag +
                 templateForm.content.substring(end);
     } else {
-      newText = templateForm.content.substring(0, start) + 
+      newText = templateForm.content.substring(0, start) +
                 format.openTag + format.closeTag +
                 templateForm.content.substring(end);
     }
-    
+
     setTemplateForm(prev => ({ ...prev, content: newText }));
-    
+
     setTimeout(() => {
       textarea.focus();
       if (selectedText) {
@@ -507,25 +496,22 @@ export default function TemplatesPage() {
     setCurrentAlign(align);
     const textarea = contentRef.current;
     if (!textarea) return;
-    
+
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = templateForm.content;
-    
-    // Find the start and end of the current line
+
     let lineStart = text.lastIndexOf('\n', start - 1) + 1;
     let lineEnd = text.indexOf('\n', end);
     if (lineEnd === -1) lineEnd = text.length;
-    
+
     const currentLine = text.substring(lineStart, lineEnd);
-    
-    // Remove any existing alignment div
+
     let cleanLine = currentLine.replace(/<div style="text-align: (left|center|right);">(.*?)<\/div>/g, '$2');
-    
-    // Wrap with alignment div
+
     const alignStyle = alignOptions.find(a => a.id === align)?.style || 'text-align: left;';
     const newLine = `<div style="${alignStyle}">${cleanLine}</div>`;
-    
+
     const newText = text.substring(0, lineStart) + newLine + text.substring(lineEnd);
     setTemplateForm(prev => ({ ...prev, content: newText }));
   };
@@ -587,7 +573,7 @@ export default function TemplatesPage() {
 
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce modèle ?')) return;
-    
+
     try {
       await settingsApi.deleteTemplate(id);
       toast.success('Modèle supprimé');
@@ -606,39 +592,34 @@ export default function TemplatesPage() {
   const getPreviewContent = (content: string, type: string, forPrint = false) => {
     let preview = content;
     const config = templateTypeConfig[type] || templateTypeConfig.autre;
-    
-    // Replace variables with highlighted or plain values
+
     config.variables.forEach(v => {
-      const replacement = forPrint 
-        ? v.example 
+      const replacement = forPrint
+        ? v.example
         : `<span style="color: var(--medicai-green-darker); font-weight: 500;">${v.example}</span>`;
       preview = preview.replace(new RegExp(`{{${v.name}}}`, 'g'), replacement);
     });
-    
-    // Convert newlines to <br> for proper display
+
     preview = preview.replace(/\n/g, '<br>');
-    
+
     return preview;
   };
 
-  // Download preview as printable document
   const handleDownloadPreview = async () => {
     if (!previewTemplate) return;
-    
+
     try {
-      // Get content with formatting preserved
+
       const content = getPreviewContent(previewTemplate.content, previewTemplate.type, true);
-      
-      // Create a printable HTML document
+
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
         toast.error('Impossible d\'ouvrir la fenêtre d\'impression. Vérifiez les bloqueurs de popup.');
         return;
       }
-      
-      // Get the background color for content area
+
       const bgColor = contentBgColor || '#ffffff';
-      
+
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -713,7 +694,7 @@ export default function TemplatesPage() {
         </html>
       `);
       printWindow.document.close();
-      
+
       toast.success('Aperçu d\'impression ouvert');
     } catch (error) {
       console.error('Download error:', error);
@@ -726,7 +707,7 @@ export default function TemplatesPage() {
       toast.error('Le raccourci doit commencer par /');
       return;
     }
-    
+
     setIsCreatingSnippet(true);
     try {
       await settingsApi.createSnippet(newSnippet);
@@ -755,7 +736,7 @@ export default function TemplatesPage() {
 
   return (
     <div className="p-8">
-      {/* Header */}
+      {}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-[#333]">Modèles de documents</h1>
         <p className="text-sm text-[#666] mt-1">
@@ -763,12 +744,12 @@ export default function TemplatesPage() {
         </p>
       </div>
 
-      {/* Tabs */}
+      {}
       <div className="flex gap-1 p-1 bg-[#F5F5F5] rounded-lg w-fit mb-6">
         <button
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'templates' 
-              ? 'bg-white text-[#333] shadow-sm' 
+            activeTab === 'templates'
+              ? 'bg-white text-[#333] shadow-sm'
               : 'text-[#666] hover:text-[#333]'
           }`}
           onClick={() => setActiveTab('templates')}
@@ -778,8 +759,8 @@ export default function TemplatesPage() {
         </button>
         <button
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'snippets' 
-              ? 'bg-white text-[#333] shadow-sm' 
+            activeTab === 'snippets'
+              ? 'bg-white text-[#333] shadow-sm'
               : 'text-[#666] hover:text-[#333]'
           }`}
           onClick={() => setActiveTab('snippets')}
@@ -795,10 +776,10 @@ export default function TemplatesPage() {
         </div>
       ) : (
         <>
-          {/* Templates Tab */}
+          {}
           {activeTab === 'templates' && (
             <div className="space-y-6">
-              {/* Toolbar */}
+              {}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="relative flex-1 max-w-sm">
@@ -822,7 +803,7 @@ export default function TemplatesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
+                <Button
                   className="h-10 bg-[#111] hover:bg-[#333] text-white"
                   onClick={handleNewTemplate}
                 >
@@ -831,7 +812,7 @@ export default function TemplatesPage() {
                 </Button>
               </div>
 
-              {/* Templates Grid */}
+              {}
               {filteredTemplates.length === 0 ? (
                 <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center">
                   <FileText className="h-12 w-12 text-[#CCC] mx-auto mb-4" />
@@ -839,7 +820,7 @@ export default function TemplatesPage() {
                   <p className="text-sm text-[#666] mb-6">
                     Créez votre premier modèle pour commencer
                   </p>
-                  <Button 
+                  <Button
                     className="bg-[#111] hover:bg-[#333] text-white"
                     onClick={handleNewTemplate}
                   >
@@ -858,14 +839,14 @@ export default function TemplatesPage() {
                       >
                         {template.header_image && (
                           <div className="h-16 bg-gray-50 border-b border-[#E5E5E5] flex items-center justify-center overflow-hidden">
-                            <img 
-                              src={template.header_image} 
-                              alt="En-tête" 
+                            <img
+                              src={template.header_image}
+                              alt="En-tête"
                               className="h-full w-full object-contain"
                             />
                           </div>
                         )}
-                        
+
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div>
@@ -901,11 +882,11 @@ export default function TemplatesPage() {
                               </Button>
                             </div>
                           </div>
-                          
+
                           <p className="text-xs text-[#666] line-clamp-3 font-mono bg-gray-50 p-2 rounded">
                             {template.content.substring(0, 150)}...
                           </p>
-                          
+
                           {template.updated_at && (
                             <p className="text-xs text-[#999] mt-3">
                               Modifié le {new Date(template.updated_at).toLocaleDateString('fr-FR')}
@@ -918,7 +899,7 @@ export default function TemplatesPage() {
                 </div>
               )}
 
-              {/* Template Dialog */}
+              {}
               <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
                 <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
                   <DialogHeader className="px-6 py-3 border-b bg-gray-50 flex-shrink-0">
@@ -927,10 +908,10 @@ export default function TemplatesPage() {
                       {editingTemplate ? 'Modifier le modèle' : 'Créer un modèle'}
                     </DialogTitle>
                   </DialogHeader>
-                  
+
                   <div className="flex-1 overflow-y-auto px-6">
                     <div className="space-y-4 py-3">
-                      {/* Basic info */}
+                      {}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-[#333] mb-1.5">
@@ -947,8 +928,8 @@ export default function TemplatesPage() {
                           <label className="block text-sm font-medium text-[#333] mb-1.5">
                             Type de document
                           </label>
-                          <Select 
-                            value={templateForm.type} 
+                          <Select
+                            value={templateForm.type}
                             onValueChange={(v) => setTemplateForm(prev => ({ ...prev, type: v }))}
                           >
                             <SelectTrigger className="h-10 border-[#E5E5E5]">
@@ -963,7 +944,7 @@ export default function TemplatesPage() {
                         </div>
                       </div>
 
-                      {/* Upload Mode Selection */}
+                      {}
                       <div className="bg-gray-50 rounded-lg p-3 border border-[#E5E5E5]">
                         <label className="block text-xs font-medium text-[#333] mb-2">
                           Mode d&apos;importation
@@ -1010,7 +991,7 @@ export default function TemplatesPage() {
                         </div>
                       </div>
 
-                      {/* Full Template Mode */}
+                      {}
                       {uploadMode === 'full' && (
                         <div>
                           <label className="block text-sm font-medium text-[#333] mb-1.5">
@@ -1025,22 +1006,22 @@ export default function TemplatesPage() {
                           />
                           {templateForm.header_image && !templateForm.footer_image ? (
                             <div className="border rounded-lg p-4 bg-gray-50">
-                              <img 
-                                src={templateForm.header_image} 
-                                alt="Modèle" 
+                              <img
+                                src={templateForm.header_image}
+                                alt="Modèle"
                                 className="max-h-64 object-contain mx-auto mb-3"
                               />
                               <div className="flex gap-2 justify-center">
-                                <Button 
-                                  variant="outline" 
+                                <Button
+                                  variant="outline"
                                   size="sm"
                                   onClick={() => fullImageInputRef.current?.click()}
                                 >
                                   <RotateCcw className="h-4 w-4 mr-2" />
                                   Changer
                                 </Button>
-                                <Button 
-                                  variant="outline" 
+                                <Button
+                                  variant="outline"
                                   size="sm"
                                   onClick={() => {
                                     setTemplateForm(prev => ({ ...prev, header_image: '' }));
@@ -1051,7 +1032,7 @@ export default function TemplatesPage() {
                               </div>
                             </div>
                           ) : (
-                            <div 
+                            <div
                               className="border-2 border-dashed border-[#E5E5E5] rounded-lg p-8 text-center hover:border-[var(--medicai-green)] transition-colors cursor-pointer"
                               onClick={() => fullImageInputRef.current?.click()}
                             >
@@ -1063,11 +1044,11 @@ export default function TemplatesPage() {
                         </div>
                       )}
 
-                      {/* Crop Mode: Header/Footer */}
+                      {}
                       {uploadMode === 'crop' && (
                         <>
                           <div className="grid grid-cols-2 gap-4">
-                            {/* Header */}
+                            {}
                             <div>
                               <label className="block text-sm font-medium text-[#333] mb-1.5">
                                 En-tête du document
@@ -1081,29 +1062,29 @@ export default function TemplatesPage() {
                               />
                               {templateForm.header_image ? (
                                 <div className="border rounded-lg p-3 bg-gray-50">
-                                  <img 
-                                    src={templateForm.header_image} 
-                                    alt="En-tête" 
+                                  <img
+                                    src={templateForm.header_image}
+                                    alt="En-tête"
                                     className="max-h-20 object-contain mx-auto mb-2"
                                   />
                                   <div className="flex gap-2 justify-center">
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => openCropDialog('header')}
                                     >
                                       <Crop className="h-3 w-3 mr-1" />
                                       Recadrer
                                     </Button>
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => headerInputRef.current?.click()}
                                     >
                                       Changer
                                     </Button>
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => setTemplateForm(prev => ({ ...prev, header_image: '' }))}
                                     >
@@ -1113,7 +1094,7 @@ export default function TemplatesPage() {
                                 </div>
                               ) : (
                                 <div className="flex gap-2">
-                                  <div 
+                                  <div
                                     className="flex-1 border-2 border-dashed border-[#E5E5E5] rounded-lg p-4 text-center hover:border-[var(--medicai-green)] transition-colors cursor-pointer"
                                     onClick={() => headerInputRef.current?.click()}
                                   >
@@ -1132,7 +1113,7 @@ export default function TemplatesPage() {
                               )}
                             </div>
 
-                            {/* Footer */}
+                            {}
                             <div>
                               <label className="block text-sm font-medium text-[#333] mb-1.5">
                                 Pied de page du document
@@ -1146,29 +1127,29 @@ export default function TemplatesPage() {
                               />
                               {templateForm.footer_image ? (
                                 <div className="border rounded-lg p-3 bg-gray-50">
-                                  <img 
-                                    src={templateForm.footer_image} 
-                                    alt="Pied de page" 
+                                  <img
+                                    src={templateForm.footer_image}
+                                    alt="Pied de page"
                                     className="max-h-20 object-contain mx-auto mb-2"
                                   />
                                   <div className="flex gap-2 justify-center">
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => openCropDialog('footer')}
                                     >
                                       <Crop className="h-3 w-3 mr-1" />
                                       Recadrer
                                     </Button>
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => footerInputRef.current?.click()}
                                     >
                                       Changer
                                     </Button>
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => setTemplateForm(prev => ({ ...prev, footer_image: '' }))}
                                     >
@@ -1178,7 +1159,7 @@ export default function TemplatesPage() {
                                 </div>
                               ) : (
                                 <div className="flex gap-2">
-                                  <div 
+                                  <div
                                     className="flex-1 border-2 border-dashed border-[#E5E5E5] rounded-lg p-4 text-center hover:border-[var(--medicai-green)] transition-colors cursor-pointer"
                                     onClick={() => footerInputRef.current?.click()}
                                   >
@@ -1198,7 +1179,7 @@ export default function TemplatesPage() {
                             </div>
                           </div>
 
-                          {/* Background Color Picker */}
+                          {}
                           {templateForm.header_image && (
                             <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-[#E5E5E5]">
                               <div className="flex items-center gap-2">
@@ -1206,7 +1187,7 @@ export default function TemplatesPage() {
                                 <span className="text-xs font-medium text-[#333]">Couleur de fond:</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <div 
+                                <div
                                   className="w-6 h-6 rounded border border-[#CCC] cursor-pointer"
                                   style={{ backgroundColor: contentBgColor }}
                                   title="Couleur extraite de l'en-tête"
@@ -1237,13 +1218,13 @@ export default function TemplatesPage() {
                             </div>
                           )}
 
-                          {/* Content Editor */}
+                          {}
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <label className="text-xs font-medium text-[#333]">
                                 Contenu du modèle *
                               </label>
-                              {/* Formatting toolbar */}
+                              {}
                               <div className="flex items-center gap-0.5 bg-[#F5F5F5] rounded p-0.5">
                                 {formatOptions.map((opt) => (
                                   <Button
@@ -1294,7 +1275,7 @@ Fait le {{date}}`}
                             </p>
                           </div>
 
-                          {/* Variables Panel */}
+                          {}
                           <div className="bg-[var(--medicai-green-lighter)] border border-[var(--medicai-green)] rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <Sparkles className="h-3.5 w-3.5" />
@@ -1327,14 +1308,14 @@ Fait le {{date}}`}
                   </div>
 
                   <DialogFooter className="border-t px-6 py-3 bg-gray-50 flex-shrink-0">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowTemplateDialog(false)}
                     >
                       Annuler
                     </Button>
-                    <Button 
+                    <Button
                       className="bg-[#111] hover:bg-[#333] text-white"
                       size="sm"
                       onClick={handleSaveTemplate}
@@ -1356,7 +1337,7 @@ Fait le {{date}}`}
                 </DialogContent>
               </Dialog>
 
-              {/* Crop Dialog */}
+              {}
               <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
                   <DialogHeader className="px-6 py-3 border-b bg-gray-50 flex-shrink-0">
@@ -1365,7 +1346,7 @@ Fait le {{date}}`}
                       Extraire {cropTarget === 'header' ? "l'en-tête" : 'le pied de page'}
                     </DialogTitle>
                   </DialogHeader>
-                  
+
                   <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                     {!uploadedImage ? (
                       <div>
@@ -1376,7 +1357,7 @@ Fait le {{date}}`}
                           onChange={handleCropImageUpload}
                           className="hidden"
                         />
-                        <div 
+                        <div
                           className="border-2 border-dashed border-[#E5E5E5] rounded-lg p-12 text-center hover:border-[var(--medicai-green)] transition-colors cursor-pointer"
                           onClick={() => cropInputRef.current?.click()}
                         >
@@ -1387,25 +1368,25 @@ Fait le {{date}}`}
                       </div>
                     ) : (
                       <>
-                        {/* Image with crop overlay - full width */}
+                        {}
                         <div className="relative border rounded-lg overflow-hidden bg-[#F5F5F5]">
-                          <img 
+                          <img
                             ref={imageRef}
-                            src={uploadedImage} 
-                            alt="Document" 
+                            src={uploadedImage}
+                            alt="Document"
                             className="w-full h-auto"
                             style={{ maxHeight: '400px', objectFit: 'contain' }}
                           />
-                          {/* Crop overlay - full width */}
-                          <div 
+                          {}
+                          <div
                             className={cn(
                               "absolute left-0 right-0 border-y-2 border-dashed pointer-events-none transition-all",
-                              cropTarget === 'header' 
-                                ? "border-blue-500 bg-blue-500/20" 
+                              cropTarget === 'header'
+                                ? "border-blue-500 bg-blue-500/20"
                                 : "border-green-500 bg-green-500/20"
                             )}
-                            style={{ 
-                              top: `${cropRegion.y}%`, 
+                            style={{
+                              top: `${cropRegion.y}%`,
                               height: `${cropRegion.height}%`,
                             }}
                           >
@@ -1420,7 +1401,7 @@ Fait le {{date}}`}
                           </div>
                         </div>
 
-                        {/* Crop Controls - Y axis only (full width) */}
+                        {}
                         <div className={cn(
                           "p-3 rounded-lg border",
                           cropTarget === 'header'
@@ -1465,7 +1446,7 @@ Fait le {{date}}`}
                   </div>
 
                   <DialogFooter className="border-t px-6 py-3 bg-gray-50 flex-shrink-0">
-                    <Button 
+                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
@@ -1476,7 +1457,7 @@ Fait le {{date}}`}
                       Annuler
                     </Button>
                     {uploadedImage && (
-                      <Button 
+                      <Button
                         className="bg-[#111] hover:bg-[#333] text-white"
                         size="sm"
                         onClick={processCrop}
@@ -1499,7 +1480,7 @@ Fait le {{date}}`}
                 </DialogContent>
               </Dialog>
 
-              {/* Preview Dialog */}
+              {}
               <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
                   <DialogHeader className="px-4 py-2 border-b bg-gray-50 flex-shrink-0">
@@ -1508,48 +1489,48 @@ Fait le {{date}}`}
                       Aperçu: {previewTemplate?.name}
                     </DialogTitle>
                   </DialogHeader>
-                  
+
                   <div className="flex-1 overflow-y-auto p-4">
-                    <div 
-                      className="border rounded-lg shadow-sm overflow-hidden mx-auto" 
-                      style={{ 
+                    <div
+                      className="border rounded-lg shadow-sm overflow-hidden mx-auto"
+                      style={{
                         maxWidth: '21cm',
-                        backgroundColor: contentBgColor 
+                        backgroundColor: contentBgColor
                       }}
                     >
                       {previewTemplate?.header_image && (
                         <div>
-                          <img 
-                            src={previewTemplate.header_image} 
-                            alt="En-tête" 
+                          <img
+                            src={previewTemplate.header_image}
+                            alt="En-tête"
                             className="w-full"
                           />
                         </div>
                       )}
-                      
-                      <div 
+
+                      <div
                         className="px-10 py-6 min-h-[250px]"
                         style={{ backgroundColor: contentBgColor }}
                       >
-                        <div 
+                        <div
                           className="text-sm leading-relaxed"
-                          dangerouslySetInnerHTML={{ 
-                            __html: previewTemplate ? getPreviewContent(previewTemplate.content, previewTemplate.type) : '' 
+                          dangerouslySetInnerHTML={{
+                            __html: previewTemplate ? getPreviewContent(previewTemplate.content, previewTemplate.type) : ''
                           }}
                         />
                       </div>
-                      
+
                       {previewTemplate?.footer_image && (
                         <div>
-                          <img 
-                            src={previewTemplate.footer_image} 
-                            alt="Pied de page" 
+                          <img
+                            src={previewTemplate.footer_image}
+                            alt="Pied de page"
                             className="w-full"
                           />
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="mt-3 p-2 bg-[var(--medicai-green-lighter)] border border-[var(--medicai-green)] rounded text-center">
                       <p className="text-[10px] text-[#555]">
                         Les variables sont remplacées par des données d&apos;exemple.
@@ -1561,7 +1542,7 @@ Fait le {{date}}`}
                     <Button variant="outline" size="sm" onClick={() => setShowPreviewDialog(false)}>
                       Fermer
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       size="sm"
                       className="border-[var(--medicai-green)] text-[#333] hover:bg-[var(--medicai-green-light)]"
@@ -1570,7 +1551,7 @@ Fait le {{date}}`}
                       <Printer className="h-3.5 w-3.5 mr-1.5" />
                       Imprimer
                     </Button>
-                    <Button 
+                    <Button
                       className="bg-[#111] hover:bg-[#333] text-white"
                       size="sm"
                       onClick={() => {
@@ -1589,7 +1570,7 @@ Fait le {{date}}`}
             </div>
           )}
 
-          {/* Snippets Tab */}
+          {}
           {activeTab === 'snippets' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-4">
@@ -1652,8 +1633,8 @@ Fait le {{date}}`}
                         />
                       </div>
                     </div>
-                    <Button 
-                      className="w-full h-10 bg-[#111] hover:bg-[#333] text-white" 
+                    <Button
+                      className="w-full h-10 bg-[#111] hover:bg-[#333] text-white"
                       onClick={handleCreateSnippet}
                       disabled={isCreatingSnippet}
                     >

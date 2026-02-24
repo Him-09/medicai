@@ -1,11 +1,5 @@
-// Default Template Packs for MedicAI
-// These are used when doctor hasn't set their own templates
-
 import { OrderTemplate } from './orders';
 
-// =============================================================================
-// PRESCRIPTION (ORDONNANCE) TEMPLATES
-// =============================================================================
 export const prescriptionTemplates: OrderTemplate[] = [
   {
     id: 'default-rx-general',
@@ -30,13 +24,13 @@ export const prescriptionTemplates: OrderTemplate[] = [
             <p style="margin: 10px 0; color: #666;">{{date}}</p>
           </div>
         </div>
-        
+
         <!-- Patient Info -->
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0;"><strong>Patient:</strong> {{patient_name}}</p>
           <p style="margin: 5px 0;"><strong>Né(e) le:</strong> {{patient_dob}} | <strong>Âge:</strong> {{patient_age}} ans</p>
         </div>
-        
+
         <!-- Medications -->
         <div style="margin-bottom: 30px;">
           {{#each medications}}
@@ -57,14 +51,14 @@ export const prescriptionTemplates: OrderTemplate[] = [
           </div>
           {{/each}}
         </div>
-        
+
         {{#if general_instructions}}
         <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0; font-weight: 600;">⚠️ Instructions générales:</p>
           <p style="margin: 5px 0;">{{general_instructions}}</p>
         </div>
         {{/if}}
-        
+
         <!-- Footer -->
         <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: end;">
           <div>
@@ -137,9 +131,6 @@ Signature: _______________
   },
 ];
 
-// =============================================================================
-// REFERRAL LETTER TEMPLATES
-// =============================================================================
 export const referralTemplates: OrderTemplate[] = [
   {
     id: 'default-referral-general',
@@ -165,14 +156,14 @@ export const referralTemplates: OrderTemplate[] = [
             </div>
           </div>
         </div>
-        
+
         <!-- Recipient -->
         <div style="margin-bottom: 25px;">
           <p style="margin: 0;"><strong>À l'attention de:</strong></p>
           <p style="margin: 5px 0; font-size: 16px;">{{#if to_provider_name}}Dr. {{to_provider_name}}{{else}}Cher(e) Confrère/Consœur{{/if}}</p>
           <p style="margin: 0; color: #666;">Service de {{to_specialty}}</p>
         </div>
-        
+
         <!-- Subject -->
         <div style="background: {{#if urgency_urgent}}#f8d7da{{else}}#e7f3ff{{/if}}; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0; font-weight: 600;">
@@ -180,25 +171,25 @@ export const referralTemplates: OrderTemplate[] = [
             Objet: Demande d'avis spécialisé pour {{patient_name}}
           </p>
         </div>
-        
+
         <!-- Patient Info -->
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0;"><strong>Patient:</strong> {{patient_name}}</p>
           <p style="margin: 5px 0;"><strong>Né(e) le:</strong> {{patient_dob}} | <strong>Âge:</strong> {{patient_age}} ans</p>
         </div>
-        
+
         <!-- Reason -->
         <div style="margin-bottom: 20px;">
           <h3 style="margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px;">Motif de la référence</h3>
           <p style="margin: 0;">{{reason}}</p>
         </div>
-        
+
         <!-- Clinical Summary -->
         <div style="margin-bottom: 20px;">
           <h3 style="margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px;">Résumé clinique</h3>
           <p style="margin: 0; white-space: pre-line;">{{clinical_summary}}</p>
         </div>
-        
+
         {{#if relevant_findings.length}}
         <!-- Key Findings -->
         <div style="margin-bottom: 20px;">
@@ -210,7 +201,7 @@ export const referralTemplates: OrderTemplate[] = [
           </ul>
         </div>
         {{/if}}
-        
+
         {{#if questions_for_specialist.length}}
         <!-- Questions -->
         <div style="margin-bottom: 20px;">
@@ -222,7 +213,7 @@ export const referralTemplates: OrderTemplate[] = [
           </ol>
         </div>
         {{/if}}
-        
+
         <!-- Footer -->
         <div style="margin-top: 30px;">
           <p>Je vous remercie par avance de bien vouloir recevoir ce patient et reste à votre disposition pour tout renseignement complémentaire.</p>
@@ -281,9 +272,6 @@ Dr. {{doctor_name}}
   },
 ];
 
-// =============================================================================
-// FOLLOW-UP PLAN TEMPLATES
-// =============================================================================
 export const followupTemplates: OrderTemplate[] = [
   {
     id: 'default-followup-general',
@@ -300,7 +288,7 @@ export const followupTemplates: OrderTemplate[] = [
           <h1 style="margin: 0; font-size: 24px;">📅 Plan de Suivi</h1>
           <p style="margin: 10px 0 0 0; opacity: 0.9;">{{patient_name}} - {{date}}</p>
         </div>
-        
+
         <!-- Content -->
         <div style="border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px; padding: 20px;">
           <!-- Next Appointment -->
@@ -311,13 +299,13 @@ export const followupTemplates: OrderTemplate[] = [
             <p style="margin: 5px 0 0 0; color: #666;">Date prévue: {{target_date}}</p>
             {{/if}}
           </div>
-          
+
           <!-- Reason -->
           <div style="margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #333;">Motif du suivi</h3>
             <p style="margin: 0;">{{reason}}</p>
           </div>
-          
+
           <!-- Focus Items -->
           {{#if focus_items.length}}
           <div style="margin-bottom: 20px;">
@@ -329,7 +317,7 @@ export const followupTemplates: OrderTemplate[] = [
             </ul>
           </div>
           {{/if}}
-          
+
           <!-- Labs before visit -->
           {{#if labs_before_visit.length}}
           <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -341,7 +329,7 @@ export const followupTemplates: OrderTemplate[] = [
             </ul>
           </div>
           {{/if}}
-          
+
           <!-- Pre-visit instructions -->
           {{#if pre_visit_instructions}}
           <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -349,7 +337,7 @@ export const followupTemplates: OrderTemplate[] = [
             <p style="margin: 0;">{{pre_visit_instructions}}</p>
           </div>
           {{/if}}
-          
+
           <!-- Reminders -->
           {{#if reminders.enabled}}
           <div style="display: flex; align-items: center; gap: 10px; color: #28a745;">
@@ -358,7 +346,7 @@ export const followupTemplates: OrderTemplate[] = [
           </div>
           {{/if}}
         </div>
-        
+
         <!-- Footer -->
         <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
           <p>Dr. {{doctor_name}} | {{clinic_name}}</p>
@@ -427,9 +415,6 @@ Dr. {{doctor_name}}
   },
 ];
 
-// =============================================================================
-// VISIT NOTE (SOAP) TEMPLATES
-// =============================================================================
 export const visitNoteTemplates: OrderTemplate[] = [
   {
     id: 'default-visit-note-soap',
@@ -445,18 +430,18 @@ export const visitNoteTemplates: OrderTemplate[] = [
           <h1 style="margin: 0;">Note de Consultation</h1>
           <p style="margin: 5px 0; color: #666;">{{date}} | {{consultation_name}}</p>
         </div>
-        
+
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 0;"><strong>Patient:</strong> {{patient_name}} | <strong>Âge:</strong> {{patient_age}} ans</p>
         </div>
-        
+
         <!-- Subjective -->
         <div style="margin-bottom: 20px;">
           <h2 style="color: #1a73e8; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px;">S - Subjectif</h2>
           <p><strong>Motif:</strong> {{chief_complaint}}</p>
           <p><strong>Histoire:</strong> {{hpi}}</p>
         </div>
-        
+
         <!-- Objective -->
         <div style="margin-bottom: 20px;">
           <h2 style="color: #1a73e8; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px;">O - Objectif</h2>
@@ -465,7 +450,7 @@ export const visitNoteTemplates: OrderTemplate[] = [
           {{/if}}
           <p><strong>Examen:</strong> {{exam}}</p>
         </div>
-        
+
         <!-- Assessment -->
         <div style="margin-bottom: 20px;">
           <h2 style="color: #1a73e8; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px;">A - Évaluation</h2>
@@ -476,7 +461,7 @@ export const visitNoteTemplates: OrderTemplate[] = [
           </div>
           {{/each}}
         </div>
-        
+
         <!-- Plan -->
         <div style="margin-bottom: 20px;">
           <h2 style="color: #1a73e8; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px;">P - Plan</h2>
@@ -491,7 +476,7 @@ export const visitNoteTemplates: OrderTemplate[] = [
           </div>
           {{/each}}
         </div>
-        
+
         <!-- Signature -->
         <div style="margin-top: 40px; text-align: right;">
           <p>Dr. {{doctor_name}}</p>
@@ -503,9 +488,6 @@ export const visitNoteTemplates: OrderTemplate[] = [
   },
 ];
 
-// =============================================================================
-// ALL DEFAULT TEMPLATES
-// =============================================================================
 export const defaultTemplates: OrderTemplate[] = [
   ...prescriptionTemplates,
   ...referralTemplates,
@@ -513,19 +495,17 @@ export const defaultTemplates: OrderTemplate[] = [
   ...visitNoteTemplates,
 ];
 
-// Get template by type and optionally specialty
 export const getDefaultTemplate = (
   type: OrderTemplate['type'],
   specialty?: string
 ): OrderTemplate | undefined => {
-  return defaultTemplates.find(t => 
-    t.type === type && 
-    t.is_default && 
+  return defaultTemplates.find(t =>
+    t.type === type &&
+    t.is_default &&
     (!specialty || t.specialty === specialty || t.specialty === 'general')
   );
 };
 
-// Get all templates for a type
 export const getTemplatesForType = (type: OrderTemplate['type']): OrderTemplate[] => {
   return defaultTemplates.filter(t => t.type === type);
 };

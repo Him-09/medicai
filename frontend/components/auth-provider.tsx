@@ -26,7 +26,6 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Routes that don't require authentication
 const publicRoutes = ['/login'];
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -36,20 +35,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check auth status on mount
+
     const checkAuth = () => {
       const isAuthenticated = authService.isAuthenticated();
       const currentUser = authService.getUser();
-      
+
       setUser(currentUser);
       setIsLoading(false);
 
-      // Redirect to login if not authenticated and not on public route
       if (!isAuthenticated && !publicRoutes.includes(pathname)) {
         router.push('/login');
       }
-      
-      // Redirect to home if authenticated and on login page
+
       if (isAuthenticated && pathname === '/login') {
         router.push('/');
       }
@@ -64,7 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     router.push('/login');
   };
 
-  // Show loading while checking auth
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -79,7 +75,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
   }
 
-  // Don't render protected content if not authenticated (except public routes)
   if (!authService.isAuthenticated() && !publicRoutes.includes(pathname)) {
     return null;
   }

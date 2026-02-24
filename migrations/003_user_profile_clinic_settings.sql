@@ -1,8 +1,3 @@
--- Migration 003: User profile and clinic settings
--- Adds profile fields to users table and creates clinic_settings table
--- Note: Run migration 000_base_tables.sql first
-
--- Add profile fields to users table
 DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
         ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
@@ -16,14 +11,12 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- Add raw_file_cleaned_at to documents table for cleanup tracking (only if table exists)
 DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') THEN
         ALTER TABLE documents ADD COLUMN IF NOT EXISTS raw_file_cleaned_at TIMESTAMPTZ;
     END IF;
 END $$;
 
--- Clinic settings table (singleton pattern with id=1)
 CREATE TABLE IF NOT EXISTS clinic_settings (
   id INT PRIMARY KEY DEFAULT 1,
   settings JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -33,7 +26,6 @@ CREATE TABLE IF NOT EXISTS clinic_settings (
   CONSTRAINT singleton_clinic CHECK (id = 1)
 );
 
--- Insert default clinic settings if not exists
 INSERT INTO clinic_settings (id, settings, schedule)
 VALUES (
   1,

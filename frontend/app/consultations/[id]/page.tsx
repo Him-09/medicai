@@ -26,27 +26,6 @@ import {
   useTemplates,
 } from '@/lib/hooks';
 import { documentsApi, workspaceApi, consultationsApi } from '@/lib/api';
-import { SmartInput, OrdersPanel, ScribePanel, VoiceScribe } from '@/components/workspace';
-import { OrdoBucket, GenerateSendDrawer } from '@/components/workspace/ordo-system';
-import type {
-  WorkspaceOrders,
-  RxIntent,
-  ReferralIntent,
-  FollowupIntent,
-} from '@/types/orders';
-import {
-  createRxIntent,
-  createReferralIntent,
-  createFollowupIntent,
-} from '@/types/orders';
-import type { OrdoItem, OrdoItemType, OrdoCandidate } from '@/types/ordo';
-import {
-  createOrdoItemsFromText,
-  createOrdoItemFromTextWithType,
-  getOrdoTypeIcon,
-  getOrdoTypeLabel,
-  resolveOrdoCandidates,
-} from '@/types/ordo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,7 +115,7 @@ export default function ConsultationWorkspacePage() {
   const params = useParams();
   const router = useRouter();
   const consultationId = params.id as string;
-  
+
   const [message, setMessage] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showPrep, setShowPrep] = useState(false);
@@ -149,22 +128,15 @@ export default function ConsultationWorkspacePage() {
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all');
   const [timelineSearch, setTimelineSearch] = useState('');
   const [showInsights, setShowInsights] = useState(true);
-  
-  // Composer mode: 'ask' for AI chat, 'note' for quick notes
+
   const [composerMode, setComposerMode] = useState<'ask' | 'note'>('ask');
   const [noteInput, setNoteInput] = useState('');
-  
-  // Voice mode state
-  const [showVoicePanel, setShowVoicePanel] = useState(false);
-  
-  // Quick actions floating button
+
   const [showQuickActions, setShowQuickActions] = useState(false);
-  
-  // Quick commands dropdown
+
   const [showQuickCommands, setShowQuickCommands] = useState(false);
   const [quickCommandSearch, setQuickCommandSearch] = useState('');
-  
-  // Undo send state
+
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [undoCountdown, setUndoCountdown] = useState(0);
@@ -178,41 +150,34 @@ export default function ConsultationWorkspacePage() {
   const [isEditingExtractedData, setIsEditingExtractedData] = useState(false);
   const [editedDocumentContent, setEditedDocumentContent] = useState<any>(null);
   const [isSavingExtractedData, setIsSavingExtractedData] = useState(false);
-  
-  // Consultation workspace state
+
   const [visitFocus, setVisitFocus] = useState('');
   const [agendaItems, setAgendaItems] = useState([
     { id: 1, text: 'Review symptoms', checked: true },
     { id: 2, text: 'Review labs (anemia)', checked: true },
   ]);
   const [newAgendaItem, setNewAgendaItem] = useState('');
-  
-  // Separate HPI section states
+
   const [hpiOneLiner, setHpiOneLiner] = useState('');
   const [hpiSymptoms, setHpiSymptoms] = useState<Array<{name: string, details: string}>>([]);
   const [hpiRedFlags, setHpiRedFlags] = useState<Array<{label: string, checked: boolean | null}>>([]);
-  // Since last visit can be string (legacy) or structured array (new format)
+
   const [hpiSinceLastVisit, setHpiSinceLastVisit] = useState<string | Array<{type: string, label: string, source: any}>>('');
   const [hpiObjectiveHighlights, setHpiObjectiveHighlights] = useState<Array<{text: string, source: string}>>([]);
   const [hpiPatientGoal, setHpiPatientGoal] = useState('');
-  
-  // Edit states for each HPI section
+
   const [editingHpiSection, setEditingHpiSection] = useState<string | null>(null);
   const [isSigningConsultation, setIsSigningConsultation] = useState(false);
-  
+
   const [examText, setExamText] = useState('');
   const [followUpText, setFollowUpText] = useState('');
-  // Plan item type with optional order linking (old system) or ordo linking (new system)
+
   type PlanItem = {
     id: string;
     text: string;
     checked: boolean;
-    linkedOrderId?: string; // Links to a converted order (old intent system)
-    linkedOrdoId?: string;  // Links to structured Ordo item (new system)
-    linkedOrdoIds?: string[]; // Links to multiple Ordo items when text contains multiple intents
   };
-  
-  // Problem state - preserves structured plan buckets from generator
+
   const [problems, setProblems] = useState<Array<{
     id: string;
     title: string;
@@ -227,52 +192,39 @@ export default function ConsultationWorkspacePage() {
       safety_net: Array<PlanItem>;
     };
     sources: string[];
-    // Track enrichment origin for hybrid KB/LLM approach
+
     enrichmentOrigin?: 'knowledge_base' | 'llm_generated' | 'default_template';
     requiresReview?: boolean;
   }>>([]);
-  // Active plan tab per problem
+
   const [activePlanTabs, setActivePlanTabs] = useState<Record<string, string>>({});
-  // Track which problems are being enriched (Fill button loading state)
+
   const [enrichingProblems, setEnrichingProblems] = useState<Set<string>>(new Set());
-  // Last A&P destination (remembers user's last selection)
+
   const [lastAPDestination, setLastAPDestination] = useState<{problemId: string; bucket: string} | null>(null);
-  // Regenerate mode: 'merge' (default) fills empty, appends evidence; 'overwrite' replaces all
+
   const [regenerateMode, setRegenerateMode] = useState<'merge' | 'overwrite'>('merge');
   const [showForceOverwriteConfirm, setShowForceOverwriteConfirm] = useState(false);
   const [quickNotes, setQuickNotes] = useState<Array<{id: number, timestamp: string, text: string}>>([]);
   const [newQuickNote, setNewQuickNote] = useState('');
-  // Orders state - new intent-based architecture
-  const [workspaceOrders, setWorkspaceOrders] = useState<WorkspaceOrders>({
-    rx_intents: [],
-    referral_intents: [],
-    followup_intents: [],
-    lab_imaging_intents: [],
-    documents: [],
-    pending_actions: [],
-  });
-  // New structured Ordo items (medications, labs, imaging, procedures)
-  const [ordoItems, setOrdoItems] = useState<OrdoItem[]>([]);
-  const [showGenerateSendDrawer, setShowGenerateSendDrawer] = useState(false);
+
   const [expandedSections, setExpandedSections] = useState({
     agenda: true,
     hpi: true,
     exam: false,
     problems: true,
     quickNotes: true,
-    orders: true,
   });
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const wordBufferRef = useRef('');
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [workspaceVersion, setWorkspaceVersion] = useState(0); // Track regeneration
+  const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const workspaceGenerationAttemptedRef = useRef(false);
-  const lastFilledVersionRef = useRef(-1); // Track which version we last filled from
+  const lastFilledVersionRef = useRef(-1);
 
-  // Get consultation to find patient ID
   const { data: consultation } = useConsultation(consultationId);
   const patientId = consultation?.patientId?.replace('#', '') || 'patient1';
 
@@ -291,11 +243,9 @@ export default function ConsultationWorkspacePage() {
   const { mutate: generateWorkspace, isPending: isGeneratingWorkspace } = useGenerateWorkspace(consultationId);
   const { data: workspaceData } = useWorkspace(consultationId);
   const { mutate: saveWorkspace } = useUpdateWorkspace(consultationId);
-  
-  // Fetch templates for order generation
+
   const { data: templates = [] } = useTemplates();
 
-  // Calculate age from DOB
   const calculateAge = (dob: string) => {
     if (!dob) return null;
     const birthDate = new Date(dob);
@@ -310,149 +260,14 @@ export default function ConsultationWorkspacePage() {
 
   const patientAge = patient?.dob ? calculateAge(patient.dob) : patient?.age;
 
-  // Helper to convert a plan item to an order intent (new architecture)
-  const handleConvertToOrder = (
-    problemId: string,
-    problemTitle: string,
-    planItemId: string,
-    planItemText: string,
-    bucket: string,
-    orderType: 'ordonnance' | 'referral' | 'follow_up'
-  ) => {
-    let newIntentId: string;
-    
-    if (orderType === 'ordonnance') {
-      // Create RxIntent with the plan item as a medication placeholder
-      const newIntent = createRxIntent({
-        medications: [{
-          id: crypto.randomUUID(),
-          name: planItemText,
-          dosage: '',
-          form: 'comprimé',
-          frequency: '',
-          duration: '',
-        }],
-        source_problem_id: problemId,
-        source_plan_item_ids: [planItemId],
-      });
-      newIntentId = newIntent.id;
-      setWorkspaceOrders(prev => ({
-        ...prev,
-        rx_intents: [...prev.rx_intents, newIntent],
-      }));
-    } else if (orderType === 'referral') {
-      // Create ReferralIntent
-      const newIntent = createReferralIntent({
-        to_specialty: '',
-        reason: planItemText,
-        clinical_summary: problemTitle,
-        source_problem_id: problemId,
-        source_plan_item_ids: [planItemId],
-      });
-      newIntentId = newIntent.id;
-      setWorkspaceOrders(prev => ({
-        ...prev,
-        referral_intents: [...prev.referral_intents, newIntent],
-      }));
-    } else {
-      // Create FollowupIntent
-      const newIntent = createFollowupIntent({
-        reason: planItemText,
-        focus_items: [problemTitle],
-        source_problem_id: problemId,
-        source_plan_item_ids: [planItemId],
-      });
-      newIntentId = newIntent.id;
-      setWorkspaceOrders(prev => ({
-        ...prev,
-        followup_intents: [...prev.followup_intents, newIntent],
-      }));
-    }
-    
-    // Link the plan item to the order intent
-    setProblems(prev => prev.map(p =>
-      p.id === problemId
-        ? {
-            ...p,
-            plan: {
-              ...p.plan,
-              [bucket]: p.plan[bucket as keyof typeof p.plan].map(item =>
-                item.id === planItemId ? { ...item, linkedOrderId: newIntentId } : item
-              )
-            }
-          }
-        : p
-    ));
-    
-    const typeLabel = orderType === 'ordonnance' ? 'ordonnance' : orderType === 'referral' ? 'référence' : 'suivi';
-    toast.success(`Converti en ${typeLabel}`);
-  };
-
-  // Smart conversion of plan item to structured Ordo item (new system)
-  const handleSmartConvertToOrdo = (
-    problemId: string,
-    planItemId: string,
-    planItemText: string,
-    bucket: string,
-    options?: { forcedType?: OrdoItemType; ctxProblemTitle?: string }
-  ) => {
-    const text = planItemText.trim();
-    if (!text) return;
-
-    const ctx = { bucket, problemTitle: options?.ctxProblemTitle };
-    const newItems = options?.forcedType
-      ? [createOrdoItemFromTextWithType(text, options.forcedType, problemId, planItemId, ctx)]
-      : createOrdoItemsFromText(text, problemId, planItemId, ctx);
-
-    if (newItems.length === 0) {
-      toast.error('Conversion impossible', { description: 'Texte trop ambigu ou vide' });
-      return;
-    }
-
-    const newIds = newItems.map(i => i.id);
-    setOrdoItems(prev => [...prev, ...newItems]);
-
-    // Link the plan item to the Ordo item(s)
-    setProblems(prev => prev.map(p =>
-      p.id === problemId
-        ? {
-            ...p,
-            plan: {
-              ...p.plan,
-              [bucket]: p.plan[bucket as keyof typeof p.plan].map(item =>
-                item.id === planItemId
-                  ? { ...item, linkedOrdoId: newIds[0], linkedOrdoIds: newIds }
-                  : item
-              )
-            }
-          }
-        : p
-    ));
-
-    // Feedback
-    const first = newItems[0];
-    const typeIcon = getOrdoTypeIcon(first.type);
-    if (newItems.length === 1) {
-      toast.success(`${typeIcon} Converti en ${getOrdoTypeLabel(first.type)}`, {
-        description: 'Ouvrez Ordo pour compléter les champs'
-      });
-    } else {
-      toast.success(`📄 Converti en ${newItems.length} éléments`, {
-        description: 'Plusieurs intentions détectées (split)'
-      });
-    }
-  };
-
-  // Load consultation name into visit focus
   useEffect(() => {
     if (consultation?.name) {
       setVisitFocus(consultation.name);
     }
   }, [consultation?.name]);
 
-  // Sync visitFocus changes back to consultation name (debounced)
   useEffect(() => {
-    // Skip if visitFocus matches current consultation name (avoid unnecessary updates)
+
     if (!visitFocus || visitFocus === consultation?.name) return;
 
     const timer = setTimeout(() => {
@@ -461,40 +276,36 @@ export default function ConsultationWorkspacePage() {
         data: { name: visitFocus }
       }, {
         onSuccess: () => {
-          // Invalidate consultation query to refresh the data
+
           queryClient.invalidateQueries({ queryKey: ['consultation', consultationId] });
         },
       });
-    }, 2000); // 2 second debounce
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [visitFocus, consultationId, consultation?.name, updateConsultation, queryClient]);
 
-  // Auto-fill workspace from workspace API data
   useEffect(() => {
-    // Fill if: (1) new version OR (2) data loaded but never filled (page reload)
+
     const shouldFill = workspaceData && (
       lastFilledVersionRef.current !== workspaceVersion ||
       lastFilledVersionRef.current === -1
     );
-    
+
     if (shouldFill) {
       lastFilledVersionRef.current = workspaceVersion;
-      
-      // 1. Visit Focus - always update from workspace data
+
       if (workspaceData.visit_focus) {
         setVisitFocus(workspaceData.visit_focus);
       }
-      
-      // 2. Agenda
+
       if (workspaceData.agenda && workspaceData.agenda.length > 0) {
         setAgendaItems(workspaceData.agenda);
       }
-      
-      // 3. HPI - store structured data
+
       if (workspaceData.hpi) {
         const hpi = workspaceData.hpi;
-        
+
         setHpiOneLiner(hpi.one_liner || '');
         setHpiSymptoms(hpi.symptoms || []);
         setHpiRedFlags((hpi.red_flags || []).map((rf: any) => ({
@@ -505,152 +316,66 @@ export default function ConsultationWorkspacePage() {
         setHpiObjectiveHighlights(hpi.objective_highlights || []);
         setHpiPatientGoal(hpi.patient_goal || '');
       }
-      
-      // 4. Problems - preserve structured plan buckets and UUIDs from generator
+
       if (workspaceData.problems && workspaceData.problems.length > 0) {
         const problemsFromWorkspace = workspaceData.problems.map((prob: any) => ({
-          id: prob.id, // Preserve UUID from generator
-          title: prob.title, // Keep title pure - urgency rendered as badge only
+          id: prob.id,
+          title: prob.title,
           urgency: prob.urgency,
           assessment: prob.assessment,
           evidence: prob.evidence || [],
           plan: {
-            // Preserve plan buckets structure with original UUIDs AND linkedOrderId/linkedOrdoId
+
             today: (prob.plan.today || []).map((item: any) => ({
-              id: item.id, // Keep generator UUID
+              id: item.id,
               text: item.text,
               checked: item.checked ?? false,
-              linkedOrderId: item.linkedOrderId, // Preserve order link (old)
-              linkedOrdoId: item.linkedOrdoId, // Preserve ordo link (new)
-              linkedOrdoIds: item.linkedOrdoIds, // Preserve multi-ordo links
             })),
             orders: (prob.plan.orders || []).map((item: any) => ({
               id: item.id,
               text: item.text,
               checked: item.checked ?? false,
-              linkedOrderId: item.linkedOrderId,
-              linkedOrdoId: item.linkedOrdoId,
-              linkedOrdoIds: item.linkedOrdoIds,
             })),
             treatment: (prob.plan.treatment || []).map((item: any) => ({
               id: item.id,
               text: item.text,
               checked: item.checked ?? false,
-              linkedOrderId: item.linkedOrderId,
-              linkedOrdoId: item.linkedOrdoId,
-              linkedOrdoIds: item.linkedOrdoIds,
             })),
             follow_up: (prob.plan.follow_up || []).map((item: any) => ({
               id: item.id,
               text: item.text,
               checked: item.checked ?? false,
-              linkedOrderId: item.linkedOrderId,
-              linkedOrdoId: item.linkedOrdoId,
-              linkedOrdoIds: item.linkedOrdoIds,
             })),
             safety_net: (prob.plan.safety_net || []).map((item: any) => ({
               id: item.id,
               text: item.text,
               checked: item.checked ?? false,
-              linkedOrderId: item.linkedOrderId,
-              linkedOrdoId: item.linkedOrdoId,
-              linkedOrdoIds: item.linkedOrdoIds,
             })),
           },
           sources: prob.sources || [],
-          // Preserve enrichment tracking fields
+
           enrichmentOrigin: prob.enrichmentOrigin,
           requiresReview: prob.requiresReview,
         }));
-        
+
         setProblems(problemsFromWorkspace);
-        
-        // Initialize active tabs for each problem
+
         const initialTabs: Record<string, string> = {};
         problemsFromWorkspace.forEach((p: any) => {
-          initialTabs[p.id] = 'today'; // Default to Today tab
+          initialTabs[p.id] = 'today';
         });
         setActivePlanTabs(initialTabs);
       }
-      
-      // 5. Workspace Orders - load intents from workspace (new architecture)
-      if (workspaceData.workspaceOrders) {
-        setWorkspaceOrders({
-          rx_intents: workspaceData.workspaceOrders.rx_intents || [],
-          referral_intents: workspaceData.workspaceOrders.referral_intents || [],
-          followup_intents: workspaceData.workspaceOrders.followup_intents || [],
-          lab_imaging_intents: workspaceData.workspaceOrders.lab_imaging_intents || [],
-          documents: workspaceData.workspaceOrders.documents || [],
-          pending_actions: workspaceData.workspaceOrders.pending_actions || [],
-        });
-      } else if (workspaceData.orders && workspaceData.orders.length > 0) {
-        // Legacy migration: convert old orders to intents
-        const rxIntents: RxIntent[] = [];
-        const referralIntents: ReferralIntent[] = [];
-        const followupIntents: FollowupIntent[] = [];
-        
-        workspaceData.orders.forEach((order: any) => {
-          const orderType = order.type || 'ordonnance';
-          if (orderType === 'ordonnance' || orderType === 'prescription') {
-            rxIntents.push(createRxIntent({
-              id: order.id,
-              medications: [{
-                id: crypto.randomUUID(),
-                name: order.title,
-                dosage: '',
-                form: 'comprimé',
-                frequency: '',
-                duration: '',
-              }],
-              source_problem_id: order.sourceProblemId || order.problemId,
-              source_plan_item_ids: order.sourcePlanItemId ? [order.sourcePlanItemId] : [],
-              created_at: order.createdAt || new Date().toISOString(),
-            }));
-          } else if (orderType === 'referral') {
-            referralIntents.push(createReferralIntent({
-              id: order.id,
-              reason: order.title,
-              clinical_summary: order.details || '',
-              source_problem_id: order.sourceProblemId || order.problemId,
-              source_plan_item_ids: order.sourcePlanItemId ? [order.sourcePlanItemId] : [],
-              created_at: order.createdAt || new Date().toISOString(),
-            }));
-          } else if (orderType === 'follow_up') {
-            followupIntents.push(createFollowupIntent({
-              id: order.id,
-              reason: order.title,
-              focus_items: order.sourceProblemTitle ? [order.sourceProblemTitle] : [],
-              source_problem_id: order.sourceProblemId || order.problemId,
-              source_plan_item_ids: order.sourcePlanItemId ? [order.sourcePlanItemId] : [],
-              created_at: order.createdAt || new Date().toISOString(),
-            }));
-          }
-        });
-        
-        setWorkspaceOrders({
-          rx_intents: rxIntents,
-          referral_intents: referralIntents,
-          followup_intents: followupIntents,
-          lab_imaging_intents: [],
-          documents: [],
-          pending_actions: [],
-        });
-      }
-      
-      // 6. Load structured Ordo items
-      if (workspaceData.ordoItems && workspaceData.ordoItems.length > 0) {
-        setOrdoItems(workspaceData.ordoItems);
-      }
-    }
-  }, [workspaceData, workspaceVersion]); // Need both to trigger on data load AND regeneration
 
-  // Sync contenteditable div with state
+    }
+  }, [workspaceData, workspaceVersion]);
+
   useEffect(() => {
     if (inputRef.current) {
       const currentValue = composerMode === 'ask' ? message : noteInput;
-      // Always update to ensure placeholder works correctly
+
       if (!currentValue) {
-        // Ensure completely empty for placeholder to show
+
         inputRef.current.textContent = '';
       } else if (inputRef.current.textContent !== currentValue) {
         inputRef.current.textContent = currentValue;
@@ -658,7 +383,6 @@ export default function ConsultationWorkspacePage() {
     }
   }, [message, noteInput, composerMode]);
 
-  // Cleanup debounce timer on unmount
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -670,17 +394,14 @@ export default function ConsultationWorkspacePage() {
     };
   }, []);
 
-  // Auto-save workspace changes with debouncing
   useEffect(() => {
-    // Skip autosave if workspace hasn't been loaded yet
+
     if (lastFilledVersionRef.current === -1) return;
-    
-    // Clear existing timer
+
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
-    
-    // Debounce save by 2 seconds after last change
+
     saveTimerRef.current = setTimeout(() => {
       saveWorkspace({
         visit_focus: visitFocus,
@@ -695,7 +416,6 @@ export default function ConsultationWorkspacePage() {
         },
         problems: problems,
         quick_notes: quickNotes,
-        orders: workspaceOrders,
       });
     }, 2000);
   }, [
@@ -709,7 +429,6 @@ export default function ConsultationWorkspacePage() {
     hpiPatientGoal,
     problems,
     quickNotes,
-    workspaceOrders,
     saveWorkspace,
   ]);
 
@@ -722,25 +441,23 @@ export default function ConsultationWorkspacePage() {
     }
   }, [chatHistory, isSending, streamingMessage]);
 
-  // Keyboard shortcuts for doctor productivity
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in inputs
+
       const target = e.target as HTMLElement;
       const isTyping = ['INPUT', 'TEXTAREA'].includes(target.tagName) ||
                        target.isContentEditable ||
                        target.contentEditable === 'true';
-      
-      // Ctrl/Cmd + key shortcuts
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
-          case 's': // Save / Sign
+          case 's':
             if (e.shiftKey && !isTyping) {
               e.preventDefault();
               setShowSignConfirm(true);
             }
             break;
-          case 'g': // Generate workspace
+          case 'g':
             if (!isTyping) {
               e.preventDefault();
               if (!isGeneratingWorkspace) {
@@ -753,30 +470,23 @@ export default function ConsultationWorkspacePage() {
               }
             }
             break;
-          case 'q': // Switch to Ask mode (Ctrl+Q for Query/Question)
+          case 'q':
             if (!isTyping) {
               e.preventDefault();
               setComposerMode('ask');
               setTimeout(() => inputRef.current?.focus(), 0);
             }
             break;
-          case 'n': // Switch to Note mode (Ctrl+Shift+N to avoid conflict)
+          case 'n':
             if (e.shiftKey && !isTyping) {
               e.preventDefault();
               setComposerMode('note');
               setTimeout(() => inputRef.current?.focus(), 0);
             }
             break;
-          case 'o': // Open Ordo bucket
-            if (!isTyping) {
-              e.preventDefault();
-              setShowGenerateSendDrawer(true);
-            }
-            break;
         }
       }
-      
-      // Escape key
+
       if (e.key === 'Escape') {
         setShowQuickActions(false);
         setEditingHpiSection(null);
@@ -792,7 +502,7 @@ export default function ConsultationWorkspacePage() {
 
     setIsSigningConsultation(true);
     try {
-      // First, save current workspace state with orders
+
       const workspaceState = {
         patient_id: patientId,
         visit_focus: visitFocus,
@@ -807,23 +517,14 @@ export default function ConsultationWorkspacePage() {
         },
         problems: problems,
         quick_notes: quickNotes,
-        workspaceOrders: workspaceOrders, // Use new intent-based orders
       };
 
-      // Save workspace
       await saveWorkspace(workspaceState);
 
-      // Sign the consultation using apiClient (includes auth token)
-      const response = await consultationsApi.sign(consultationId, { workspaceOrders });
+      await consultationsApi.sign(consultationId);
 
-      const rxCount = workspaceOrders.rx_intents.length;
-      if (rxCount > 0) {
-        toast.success(`Consultation signée ! ${rxCount} ordonnance${rxCount > 1 ? 's' : ''} prête${rxCount > 1 ? 's' : ''} à envoyer.`);
-      } else {
-        toast.success('Consultation signée avec succès !');
-      }
-      
-      // Redirect to consultations list
+      toast.success('Consultation signée avec succès !');
+
       setTimeout(() => {
         router.push('/consultations');
       }, 1000);
@@ -835,152 +536,12 @@ export default function ConsultationWorkspacePage() {
     }
   };
 
-  // Handle enriching a problem with clinical content (Fill button)
-  const handleEnrichProblem = async (problem: typeof problems[0]) => {
-    if (!consultationId) return;
-    
-    // Mark problem as being enriched
-    setEnrichingProblems(prev => new Set(prev).add(problem.id));
-    
-    try {
-      const enrichedData = await workspaceApi.enrichProblem(
-        consultationId,
-        problem.id,
-        problem.title,
-        problem.evidence,
-        problem.urgency
-      );
-      
-      // Use functional state update to ensure we have the latest problems array
-      setProblems(currentProblems => {
-        const updatedProblems = currentProblems.map(p => {
-          if (p.id !== problem.id) return p;
-          
-          return {
-            ...p,
-            assessment: enrichedData.assessment || p.assessment,
-            // Track if this problem's content was LLM-generated
-            enrichmentOrigin: enrichedData.origin,
-            requiresReview: enrichedData.requires_review,
-            plan: {
-              today: enrichedData.plan?.today?.length > 0 
-                ? enrichedData.plan.today.map((item: any) => ({
-                    id: item.id || crypto.randomUUID(),
-                    text: item.text,
-                    checked: item.checked ?? false
-                  }))
-                : p.plan.today,
-              orders: enrichedData.plan?.orders?.length > 0
-                ? enrichedData.plan.orders.map((item: any) => ({
-                    id: item.id || crypto.randomUUID(),
-                    text: item.text,
-                    checked: item.checked ?? false
-                  }))
-                : p.plan.orders,
-              treatment: enrichedData.plan?.treatment?.length > 0
-                ? enrichedData.plan.treatment.map((item: any) => ({
-                    id: item.id || crypto.randomUUID(),
-                    text: item.text,
-                    checked: item.checked ?? false
-                  }))
-                : p.plan.treatment,
-              follow_up: enrichedData.plan?.follow_up?.length > 0
-                ? enrichedData.plan.follow_up.map((item: any) => ({
-                    id: item.id || crypto.randomUUID(),
-                    text: item.text,
-                    checked: item.checked ?? false
-                  }))
-                : p.plan.follow_up,
-              safety_net: enrichedData.plan?.safety_net?.length > 0
-                ? enrichedData.plan.safety_net.map((item: any) => ({
-                    id: item.id || crypto.randomUUID(),
-                    text: item.text,
-                    checked: item.checked ?? false
-                  }))
-                : p.plan.safety_net,
-            }
-          };
-        });
-        
-        // Save workspace with updated problems
-        saveWorkspace({
-          visit_focus: visitFocus,
-          agenda: agendaItems,
-          hpi: {
-            one_liner: hpiOneLiner,
-            symptoms: hpiSymptoms,
-            red_flags: hpiRedFlags,
-            since_last_visit: hpiSinceLastVisit,
-            objective_highlights: hpiObjectiveHighlights,
-            patient_goal: hpiPatientGoal,
-          },
-          problems: updatedProblems,
-          quick_notes: quickNotes,
-          orders: workspaceOrders,
-        });
-        
-        return updatedProblems;
-      });
-      
-      // Also update HPI red flags if returned
-      if (enrichedData.red_flags?.length > 0) {
-        setHpiRedFlags(prev => {
-          const existingLabels = new Set(prev.map(rf => rf.label));
-          const newFlags = enrichedData.red_flags
-            .filter((rf: any) => !existingLabels.has(rf.label))
-            .map((rf: any) => ({ label: rf.label, checked: rf.checked ?? null }));
-          return [...prev, ...newFlags];
-        });
-      }
-      
-      // Update HPI symptoms if returned
-      if (enrichedData.symptoms?.length > 0) {
-        setHpiSymptoms(prev => {
-          const existingNames = new Set(prev.map(s => s.name));
-          const newSymptoms = enrichedData.symptoms
-            .filter((s: any) => !existingNames.has(s.name))
-            .map((s: any) => ({ name: s.name, details: s.details || '' }));
-          return [...prev, ...newSymptoms];
-        });
-      }
-      
-      // Show different toast based on origin
-      if (enrichedData.requires_review) {
-        toast.info(`Contenu IA généré pour "${problem.title}" (vérification recommandée)`, {
-          duration: 5000,
-        });
-      } else {
-        toast.success(`Contenu clinique ajouté pour "${problem.title}"`);
-      }
-    } catch (error) {
-      console.error('Failed to enrich problem:', error);
-      toast.error('Échec du remplissage du contenu clinique');
-    } finally {
-      // Remove from enriching set
-      setEnrichingProblems(prev => {
-        const next = new Set(prev);
-        next.delete(problem.id);
-        return next;
-      });
-    }
+  const handleEnrichProblem = async (_problem: typeof problems[0]) => {
+    return;
   };
 
-  // Handle filling all problems with clinical content
   const handleFillAllProblems = async () => {
-    if (!consultationId || problems.length === 0) return;
-    
-    toast.info(`Remplissage de ${problems.length} problème${problems.length !== 1 ? 's' : ''}...`);
-    
-    // Enrich all problems in parallel
-    const enrichPromises = problems.map(problem => handleEnrichProblem(problem));
-    
-    try {
-      await Promise.all(enrichPromises);
-      toast.success('Tous les problèmes remplis avec succès');
-    } catch (error) {
-      // Individual errors are already handled in handleEnrichProblem
-      console.error('Some problems failed to enrich:', error);
-    }
+    return;
   };
 
   const handleSendMessage = async () => {
@@ -994,18 +555,16 @@ export default function ConsultationWorkspacePage() {
 
     try {
       await sendMessage(
-        { 
-          patientId, 
+        {
+          patientId,
           text: userMessage,
           onToken: (token: string) => {
-            // Word-by-word buffering
+
             wordBufferRef.current += token;
             const words = wordBufferRef.current.split(' ');
-            
-            // Keep last partial word in buffer
+
             wordBufferRef.current = words.pop() || '';
-            
-            // Commit complete words to UI
+
             if (words.length > 0) {
               const newWords = words.join(' ') + ' ';
               setStreamingMessage(prev => prev + newWords);
@@ -1014,11 +573,11 @@ export default function ConsultationWorkspacePage() {
         },
         {
           onSuccess: () => {
-            // Flush any remaining buffer
+
             if (wordBufferRef.current) {
               setStreamingMessage(prev => prev + wordBufferRef.current);
             }
-            
+
             setTimeout(() => {
               setIsStreaming(false);
               setStreamingMessage('');
@@ -1040,27 +599,24 @@ export default function ConsultationWorkspacePage() {
     }
   };
 
-  // Handle sending Ask message with undo capability
   const handleSendWithUndo = () => {
     if (!message.trim() || !consultationId) return;
-    
+
     const msgToSend = message;
     setMessage('');
     setPendingMessage(msgToSend);
-    
-    // Set single 1.5s timeout (same as ECG animation duration)
+
     const timeout = setTimeout(() => {
       setPendingMessage(null);
-      // Actually send the message
+
       setMessage(msgToSend);
       setTimeout(() => handleSendMessage(), 0);
       setMessage('');
     }, 1500);
-    
+
     setUndoTimeout(timeout);
   };
 
-  // Cancel pending message
   const handleUndoSend = () => {
     if (undoTimeout) {
       clearTimeout(undoTimeout);
@@ -1073,25 +629,22 @@ export default function ConsultationWorkspacePage() {
     }
   };
 
-  // Handle adding a quick note from composer
   const handleAddNote = () => {
     if (!noteInput.trim()) return;
-    
+
     const newNote = {
       id: Date.now(),
       timestamp: format(new Date(), 'h:mm a'),
       text: noteInput.trim(),
     };
-    
+
     setQuickNotes(prev => [...prev, newNote]);
     setNoteInput('');
     toast.success('Note ajoutée');
-    
-    // Focus back on input
+
     inputRef.current?.focus();
   };
 
-  // Insert content into a specific Now strip destination
   const handleInsertToNowStrip = (content: string, destination: 'oneliner' | 'symptom' | 'redflag' | 'evidence') => {
     switch (destination) {
       case 'oneliner':
@@ -1113,7 +666,6 @@ export default function ConsultationWorkspacePage() {
     }
   };
 
-  // Add content to a specific problem + bucket
   const handleAddToAP = (content: string, problemId: string, bucket: string) => {
     setProblems(prev => prev.map(p =>
       p.id === problemId
@@ -1134,16 +686,13 @@ export default function ConsultationWorkspacePage() {
     toast.success(`Added to ${bucket}`);
   };
 
-  // Keyboard shortcuts for composer mode
-  // A/N switch only when composer is focused AND empty, or with Ctrl modifier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeElement = document.activeElement;
       const isComposerFocused = activeElement === inputRef.current;
       const composerValue = composerMode === 'ask' ? message : noteInput;
       const isComposerEmpty = !composerValue.trim();
-      
-      // Ctrl+A / Ctrl+N always work (safe override)
+
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() === 'a') {
           e.preventDefault();
@@ -1157,8 +706,7 @@ export default function ConsultationWorkspacePage() {
           return;
         }
       }
-      
-      // A/N without modifier only when composer focused AND empty
+
       if (isComposerFocused && isComposerEmpty) {
         if (e.key.toLowerCase() === 'a' && composerMode !== 'ask') {
           e.preventDefault();
@@ -1178,7 +726,6 @@ export default function ConsultationWorkspacePage() {
     getPrep();
   };
 
-  // Auto-generate workspace on consultation load (only once)
   useEffect(() => {
     if (consultationId && patientId && !workspaceGenerationAttemptedRef.current && !isGeneratingWorkspace) {
       workspaceGenerationAttemptedRef.current = true;
@@ -1186,17 +733,14 @@ export default function ConsultationWorkspacePage() {
     }
   }, [consultationId, patientId, isGeneratingWorkspace, generateWorkspace]);
 
-  // Auto-save workspace with debouncing (2 seconds after last change)
   useEffect(() => {
-    // Skip auto-save during workspace generation to prevent race condition
+
     if (!workspaceData || !patientId || isGeneratingWorkspace) return;
 
-    // Clear existing timer
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
 
-    // Set new timer
     saveTimerRef.current = setTimeout(() => {
       const workspaceState = {
         patient_id: patientId,
@@ -1212,8 +756,6 @@ export default function ConsultationWorkspacePage() {
         },
         problems: problems,
         quick_notes: quickNotes,
-        workspaceOrders: workspaceOrders, // Use new intent-based orders
-        ordoItems: ordoItems, // Structured Ordo items (medications, labs, imaging, procedures)
       };
 
       saveWorkspace(workspaceState, {
@@ -1221,9 +763,8 @@ export default function ConsultationWorkspacePage() {
           console.error('Failed to auto-save workspace:', error);
         },
       });
-    }, 2000); // 2 second debounce
+    }, 2000);
 
-    // Cleanup
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -1240,8 +781,6 @@ export default function ConsultationWorkspacePage() {
     hpiPatientGoal,
     problems,
     quickNotes,
-    workspaceOrders,
-    ordoItems,
     patientId,
     saveWorkspace,
     isGeneratingWorkspace,
@@ -1273,7 +812,6 @@ export default function ConsultationWorkspacePage() {
     .join('')
     .toUpperCase();
 
-  // Build timeline from real data
   interface TimelineItem {
     id: string;
     date: string;
@@ -1290,18 +828,17 @@ export default function ConsultationWorkspacePage() {
 
   const timelineItems: TimelineItem[] = [];
 
-  // Add patient's consultations to timeline
   if (allConsultations) {
     const patientConsultations = allConsultations.filter(
       (c) => c.patientId === `#${patientId}`
     );
     patientConsultations.forEach((consultation) => {
-      const date = consultation.consultationTime 
+      const date = consultation.consultationTime
         ? new Date(consultation.consultationTime)
         : consultation.createdAt
         ? new Date(consultation.createdAt)
         : new Date();
-      
+
       timelineItems.push({
         id: consultation.id,
         date: format(date, 'MMM. d, yyyy'),
@@ -1317,17 +854,15 @@ export default function ConsultationWorkspacePage() {
     });
   }
 
-  // Add patient's documents to timeline
   if (patientDocuments && patientDocuments.length > 0) {
     patientDocuments.forEach((doc) => {
       const dateStr = doc.date_of_service || doc.doc_date;
       if (!dateStr) return;
-      
+
       const date = new Date(dateStr);
       let type = 'document';
       let title = doc.document_type || 'Document';
-      
-      // Map document types to timeline types - normalize the type names
+
       const docType = doc.document_type?.toLowerCase() || '';
       if (docType.includes('lab')) {
         type = 'lab';
@@ -1339,10 +874,10 @@ export default function ConsultationWorkspacePage() {
         type = 'prescription';
         title = 'Prescription';
       } else {
-        // Keep the original document type as title for other types
+
         title = doc.document_type || 'Document';
       }
-      
+
       timelineItems.push({
         id: doc.doc_id,
         date: format(date, 'MMM. d, yyyy'),
@@ -1358,27 +893,23 @@ export default function ConsultationWorkspacePage() {
     });
   }
 
-  // Sort timeline items by date (newest first)
   timelineItems.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
 
-  // Filter timeline items
   const filteredTimelineItems = timelineItems.filter(item => {
-    // Filter by type
+
     if (timelineFilter === 'consultations' && item.type !== 'consultation') return false;
     if (timelineFilter === 'labs' && item.type !== 'lab') return false;
     if (timelineFilter === 'imaging' && item.type !== 'imaging') return false;
     if (timelineFilter === 'prescriptions' && item.type !== 'prescription') return false;
     if (timelineFilter === 'documents' && item.type !== 'document') return false;
-    
-    // Filter by search
+
     if (timelineSearch && !item.title.toLowerCase().includes(timelineSearch.toLowerCase())) {
       return false;
     }
-    
+
     return true;
   });
 
-  // Group by date
   const groupedTimeline = filteredTimelineItems.reduce((acc: any, item) => {
     if (!acc[item.date]) {
       acc[item.date] = [];
@@ -1389,13 +920,13 @@ export default function ConsultationWorkspacePage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* LEFT COLUMN - Timeline Section */}
+      {}
       <div className={`${showTimeline ? 'w-[15%] min-w-[250px]' : 'w-10'} bg-background border-r flex flex-col transition-all duration-300`}>
         {showTimeline ? (
           <>
-        {/* Fixed Header */}
+        {}
         <div className="flex-shrink-0 border-b bg-background">
-          {/* Title */}
+          {}
           <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Chronologie</h2>
             <Button
@@ -1407,8 +938,8 @@ export default function ConsultationWorkspacePage() {
               <ChevronRight className="h-4 w-4 rotate-180" />
             </Button>
           </div>
-          
-          {/* Filter Tabs */}
+
+          {}
           <div className="px-3 pb-3">
             <div className="w-full grid grid-cols-4 h-9 gap-1 bg-muted/50 p-1 rounded-lg">
               <button
@@ -1452,8 +983,8 @@ export default function ConsultationWorkspacePage() {
                 <FileText className="h-3 w-3" />
               </button>
             </div>
-            
-            {/* More Dropdown */}
+
+            {}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="w-full mt-2 text-xs text-muted-foreground h-8">
@@ -1472,8 +1003,8 @@ export default function ConsultationWorkspacePage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          
-          {/* Search Field */}
+
+          {}
           <div className="px-3 pb-3">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1488,23 +1019,23 @@ export default function ConsultationWorkspacePage() {
           </div>
         </div>
 
-        {/* Scrollable Timeline List */}
+        {}
         <div className="flex-1 overflow-y-auto">
           {Object.entries(groupedTimeline).map(([date, items]: [string, any]) => (
             <div key={date} className="border-b last:border-b-0">
-              {/* Date Header */}
+              {}
               <div className="sticky top-0 bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground border-b">
                 {date}
               </div>
-              
-              {/* Timeline Items */}
+
+              {}
               <div className="divide-y">
                 {items.map((item: any) => (
                   <div
                     key={item.id}
                     className="group relative block px-4 py-3 hover:bg-muted/50 transition-colors"
                   >
-                    <div 
+                    <div
                       className="flex items-start space-x-3 cursor-pointer"
                       onClick={() => {
                         if (item.type !== 'consultation') {
@@ -1549,13 +1080,13 @@ export default function ConsultationWorkspacePage() {
                           </p>
                         )}
                       </div>
-                    </div>                    
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ))}
-          
+
           {Object.keys(groupedTimeline).length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               {timelineFilter === 'all' && !timelineSearch && 'No timeline items yet'}
@@ -1584,11 +1115,11 @@ export default function ConsultationWorkspacePage() {
         )}
       </div>
 
-      {/* MIDDLE Section - Consultation Workspace */}
+      {}
       <div className="flex-1 bg-background border-l flex flex-col overflow-hidden transition-all duration-300 relative">
         {showSidebar && (
           <>
-        {/* Visit Control Header with Completion Meter */}
+        {}
         <div className="flex-shrink-0 bg-background border-b px-3 py-2.5 z-10 relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1602,7 +1133,7 @@ export default function ConsultationWorkspacePage() {
               </Button>
               <div>
               <h2 className="text-m font-semibold">Espace de travail</h2>
-              {/* Completion meter - shows closure signals */}
+              {}
               <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
               {problems.length > 0 && (
                 <>
@@ -1612,13 +1143,13 @@ export default function ConsultationWorkspacePage() {
                   <span>•</span>
                   <div className="flex items-center gap-1">
                     {(() => {
-                      const totalItems = problems.reduce((acc, p) => 
+                      const totalItems = problems.reduce((acc, p) =>
                         acc + p.plan.today.length + p.plan.orders.length + p.plan.treatment.length + p.plan.follow_up.length + p.plan.safety_net.length, 0);
-                      const checkedItems = problems.reduce((acc, p) => 
-                        acc + p.plan.today.filter(i => i.checked).length + 
-                        p.plan.orders.filter(i => i.checked).length + 
-                        p.plan.treatment.filter(i => i.checked).length + 
-                        p.plan.follow_up.filter(i => i.checked).length + 
+                      const checkedItems = problems.reduce((acc, p) =>
+                        acc + p.plan.today.filter(i => i.checked).length +
+                        p.plan.orders.filter(i => i.checked).length +
+                        p.plan.treatment.filter(i => i.checked).length +
+                        p.plan.follow_up.filter(i => i.checked).length +
                         p.plan.safety_net.filter(i => i.checked).length, 0);
                       return (
                         <>
@@ -1632,7 +1163,7 @@ export default function ConsultationWorkspacePage() {
                   </div>
                 </>
               )}
-              {/* Triage status */}
+              {}
               {quickNotes.length > 0 ? (
                 <Badge variant="outline" className="h-4 text-[10px] px-1.5 text-muted-foreground border-border">
                   {quickNotes.length} à trier
@@ -1642,27 +1173,8 @@ export default function ConsultationWorkspacePage() {
                   <Check className="h-2.5 w-2.5 mr-0.5" /> Trié
                 </Badge>
               )}
-              {/* Orders status */}
-              {(() => {
-                const totalIntents = workspaceOrders.rx_intents.length + 
-                                    workspaceOrders.referral_intents.length + 
-                                    workspaceOrders.followup_intents.length;
-                const draftDocs = workspaceOrders.documents.filter(d => d.status === 'draft').length;
-                const pendingActions = workspaceOrders.pending_actions.filter(a => a.status === 'pending').length;
-                
-                if (totalIntents === 0) return null;
-                return (
-                  <Badge variant="outline" className={`h-4 text-[10px] px-1.5 ${
-                    draftDocs > 0 || pendingActions > 0 ? 'text-muted-foreground border-border' : 
-                    'text-accent-foreground border-accent'
-                  }`}>
-                    {draftDocs > 0 ? `${draftDocs} brouillon${draftDocs !== 1 ? 's' : ''}` : 
-                    pendingActions > 0 ? `${pendingActions} action${pendingActions !== 1 ? 's' : ''} en attente` : 
-                    <><Check className="h-2.5 w-2.5 mr-0.5" /> {totalIntents} ordonnance{totalIntents !== 1 ? 's' : ''}</>}
-                  </Badge>
-                );
-              })()}
-              {/* Follow-up status */}
+
+              {}
               {(() => {
                 const hasFollowUp = problems.some(p => p.plan.follow_up.length > 0);
                 return hasFollowUp ? (
@@ -1679,7 +1191,7 @@ export default function ConsultationWorkspacePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Actions dropdown */}
+              {}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -1691,7 +1203,7 @@ export default function ConsultationWorkspacePage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={handleFillAllProblems}
                     disabled={enrichingProblems.size > 0}
                   >
@@ -1700,7 +1212,7 @@ export default function ConsultationWorkspacePage() {
                       <div className="font-medium">{enrichingProblems.size > 0 ? 'Remplissage...' : 'Enrichir le contenu clinique'}</div>
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => setShowForceOverwriteConfirm(true)}
                     disabled={isGeneratingWorkspace}
                     className="text-destructive focus:text-destructive"
@@ -1712,37 +1224,18 @@ export default function ConsultationWorkspacePage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="h-7 text-xs"
                 onClick={() => setShowSignConfirm(true)}
                 disabled={isSigningConsultation}
               >
-                
+
                 {isSigningConsultation ? 'Signature...' : 'Signer'}
               </Button>
             </div>
           </div>
-          
-          {/* Scribe - Compact inline on bottom border right */}
-          <div className="absolute bottom-0 right-27 transform translate-y-1/2 z-20">
-            <VoiceScribe
-              consultationId={consultationId}
-              language="fr"
-              onTranscriptChange={(transcript) => {
-                console.log('Transcript updated:', transcript.length, 'chars');
-              }}
-              onSOAPGenerated={(soap) => {
-                const soapText = `**S:** ${soap.subjective}\n**O:** ${soap.objective}\n**A:** ${soap.assessment}\n**P:** ${soap.plan}`;
-                setQuickNotes(prev => [...prev, {
-                  id: Date.now(),
-                  timestamp: format(new Date(), 'h:mm a'),
-                  text: `[SOAP Scribe]\n${soapText.slice(0, 800)}`,
-                }]);
-                toast.success('Note SOAP générée et ajoutée');
-              }}
-            />
-          </div>
+
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -1760,14 +1253,14 @@ export default function ConsultationWorkspacePage() {
 
             {/* Agenda */}
             <div className="space-y-2">
-              <div 
+              <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={() => setExpandedSections({...expandedSections, agenda: !expandedSections.agenda})}
               >
                 <h4 className="text-sm font-medium text-muted-foreground">Ordre du jour</h4>
                 {expandedSections.agenda ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </div>
-              
+
               {expandedSections.agenda && (
                 <div className="space-y-2 pl-4">
                   {agendaItems.map((item) => (
@@ -1775,7 +1268,7 @@ export default function ConsultationWorkspacePage() {
                       <Checkbox
                         checked={item.checked}
                         onCheckedChange={(checked) => {
-                          setAgendaItems(prev => prev.map(i => 
+                          setAgendaItems(prev => prev.map(i =>
                             i.id === item.id ? { ...i, checked: checked as boolean } : i
                           ));
                         }}
@@ -1787,16 +1280,10 @@ export default function ConsultationWorkspacePage() {
                   ))}
                   <div className="flex items-center gap-2 -mx-2">
                     <Plus className="h-4 w-4 text-muted-foreground ml-2" />
-                    <SmartInput
+                    <Input
                       placeholder="Ajouter un élément..."
                       value={newAgendaItem}
-                      onChange={setNewAgendaItem}
-                      patientId={patientId}
-                      consultationId={consultationId}
-                      section="agenda"
-                      fieldType="agenda_item"
-                      activeProblems={problems.map(p => p.title)}
-                      visitFocus={visitFocus}
+                      onChange={(e) => setNewAgendaItem(e.target.value)}
                       className="flex-1"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && newAgendaItem.trim()) {
@@ -1822,7 +1309,7 @@ export default function ConsultationWorkspacePage() {
           {patientChanges && (
             <div className="space-y-2">
               {/* Compact Header */}
-              <div 
+              <div
                 className="flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 onClick={() => setShowInsights(!showInsights)}
               >
@@ -1862,7 +1349,7 @@ export default function ConsultationWorkspacePage() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {patientChanges.new_abnormals.slice(0, 5).map((lab, idx) => (
-                          <span 
+                          <span
                             key={idx}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-destructive/5 border border-destructive/20 text-foreground"
                           >
@@ -1889,7 +1376,7 @@ export default function ConsultationWorkspacePage() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {patientChanges.worsening_trends.slice(0, 4).map((trend, idx) => (
-                          <span 
+                          <span
                             key={idx}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-foreground"
                           >
@@ -1907,7 +1394,7 @@ export default function ConsultationWorkspacePage() {
                   )}
 
                   {/* New Documents & Imaging - Priority 3 */}
-                  {((patientChanges.new_documents && patientChanges.new_documents.length > 0) || 
+                  {((patientChanges.new_documents && patientChanges.new_documents.length > 0) ||
                     (patientChanges.new_imaging && patientChanges.new_imaging.length > 0)) && (
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -1916,7 +1403,7 @@ export default function ConsultationWorkspacePage() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {patientChanges.new_documents?.slice(0, 3).map((doc, idx) => (
-                          <button 
+                          <button
                             key={`doc-${idx}`}
                             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-muted border border-border text-foreground hover:bg-accent transition-colors"
                             onClick={() => {
@@ -1932,7 +1419,7 @@ export default function ConsultationWorkspacePage() {
                           </button>
                         ))}
                         {patientChanges.new_imaging?.slice(0, 2).map((img, idx) => (
-                          <button 
+                          <button
                             key={`img-${idx}`}
                             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-muted border border-border text-foreground hover:bg-accent transition-colors"
                             onClick={() => {
@@ -1955,12 +1442,12 @@ export default function ConsultationWorkspacePage() {
 
                   {/* Empty state */}
                   {(() => {
-                    const hasAnyData = 
+                    const hasAnyData =
                       (patientChanges.new_documents?.length || 0) > 0 ||
                       (patientChanges.new_abnormals?.length || 0) > 0 ||
                       (patientChanges.worsening_trends?.length || 0) > 0 ||
                       (patientChanges.new_imaging?.length || 0) > 0;
-                    
+
                     if (!hasAnyData) {
                       return (
                         <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
@@ -1981,27 +1468,18 @@ export default function ConsultationWorkspacePage() {
           {/* Now Strip - Compact context summary */}
           <div className="space-y-3 bg-[#F9F9F9] rounded-xl p-3">
             {/* One-liner - always visible, click to edit */}
-            <div 
+            <div
               className="text-sm cursor-pointer group"
               onClick={() => !editingHpiSection && setEditingHpiSection('oneLiner')}
             >
               {editingHpiSection === 'oneLiner' ? (
                 <div className="space-y-1.5">
-                  <SmartInput
+                  <Textarea
                     value={hpiOneLiner}
-                    onChange={setHpiOneLiner}
+                    onChange={(e) => setHpiOneLiner(e.target.value)}
                     placeholder="Brief summary: age, chief complaint, key findings"
-                    className="font-medium"
+                    className="font-medium min-h-[40px]"
                     autoFocus
-                    multiline
-                    minHeight="40px"
-                    patientId={patientId}
-                    consultationId={consultationId}
-                    section="hpi"
-                    fieldType="one_liner"
-                    activeProblems={problems.map(p => p.title)}
-                    visitFocus={visitFocus}
-                    showTriggerHints
                     onBlur={() => setEditingHpiSection(null)}
                     onKeyDown={(e) => {
                       if (e.key === 'Escape') {
@@ -2019,18 +1497,18 @@ export default function ConsultationWorkspacePage() {
               )}
             </div>
 
-            {/* Symptoms - compact chips (max 3) with edit popover */}
+            {}
             {hpiSymptoms.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {hpiSymptoms.slice(0, 3).map((symptom, idx) => (
-                  <Popover 
-                    key={idx} 
+                  <Popover
+                    key={idx}
                     open={editingHpiSection === `symptom-${idx}`}
                     onOpenChange={(open) => setEditingHpiSection(open ? `symptom-${idx}` : null)}
                   >
                     <PopoverTrigger asChild>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="text-xs cursor-pointer hover:bg-secondary/80 border-black/20"
                       >
                         {symptom.name}
@@ -2045,7 +1523,7 @@ export default function ConsultationWorkspacePage() {
                             if (e.key === 'Enter') {
                               const newName = e.currentTarget.value.trim();
                               if (newName) {
-                                setHpiSymptoms(prev => prev.map((s, i) => 
+                                setHpiSymptoms(prev => prev.map((s, i) =>
                                   i === idx ? { ...s, name: newName } : s
                                 ));
                               }
@@ -2076,7 +1554,7 @@ export default function ConsultationWorkspacePage() {
                               const input = e.currentTarget.parentElement?.parentElement?.querySelector('input');
                               const newName = input?.value.trim();
                               if (newName) {
-                                setHpiSymptoms(prev => prev.map((s, i) => 
+                                setHpiSymptoms(prev => prev.map((s, i) =>
                                   i === idx ? { ...s, name: newName } : s
                                 ));
                               }
@@ -2102,15 +1580,15 @@ export default function ConsultationWorkspacePage() {
                         <div className="text-sm font-medium">Tous les symptômes ({hpiSymptoms.length})</div>
                         <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
                           {hpiSymptoms.map((symptom, idx) => (
-                            <Badge 
+                            <Badge
                               key={idx}
-                              variant="secondary" 
+                              variant="secondary"
                               className="text-xs cursor-pointer hover:bg-secondary/80 group"
                               onClick={() => setEditingHpiSection(`symptom-${idx}`)}
                             >
                               {symptom.name}
-                              <X 
-                                className="h-2.5 w-2.5 ml-1 opacity-0 group-hover:opacity-100" 
+                              <X
+                                className="h-2.5 w-2.5 ml-1 opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setHpiSymptoms(prev => prev.filter((_, i) => i !== idx));
@@ -2150,7 +1628,7 @@ export default function ConsultationWorkspacePage() {
                     </PopoverContent>
                   </Popover>
                 )}
-                {/* Add button when 3 or fewer symptoms */}
+                {}
                 {hpiSymptoms.length <= 3 && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -2196,7 +1674,7 @@ export default function ConsultationWorkspacePage() {
               </div>
             )}
 
-            {/* Red Flags - tri-state toggle: null=unknown, true=present, false=absent */}
+            {}
             {hpiRedFlags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {hpiRedFlags.slice(0, 4).map((rf, idx) => (
@@ -2204,7 +1682,7 @@ export default function ConsultationWorkspacePage() {
                     key={idx}
                     onClick={() => {
                       const updated = [...hpiRedFlags];
-                      // Cycle: null → true → false → null
+
                       if (rf.checked === null) updated[idx].checked = true;
                       else if (rf.checked === true) updated[idx].checked = false;
                       else updated[idx].checked = null;
@@ -2300,7 +1778,7 @@ export default function ConsultationWorkspacePage() {
                     </PopoverContent>
                   </Popover>
                 )}
-                {/* Add button when 4 or fewer red flags */}
+                {}
                 {hpiRedFlags.length <= 4 && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -2346,14 +1824,14 @@ export default function ConsultationWorkspacePage() {
               </div>
             )}
 
-            {/* Changes since last visit - structured list */}
+            {}
             {Array.isArray(hpiSinceLastVisit) && hpiSinceLastVisit.length > 0 && (
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Évolution :</span>
                 <div className="flex flex-wrap gap-1.5">
                   {hpiSinceLastVisit.map((change: any, idx: number) => (
-                    <Badge 
-                      key={idx} 
+                    <Badge
+                      key={idx}
                       variant={change.type === 'worsening' ? 'destructive' : change.type === 'new_abnormal' ? 'default' : 'outline'}
                       className="text-[10px]"
                     >
@@ -2369,120 +1847,11 @@ export default function ConsultationWorkspacePage() {
               </div>
             )}
 
-            {/* Evidence chips - from documents/AI with expandable view */}
-            {/*
-            {hpiObjectiveHighlights.length > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Preuves :</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]">
-                        <Plus className="h-2.5 w-2.5 mr-0.5" />
-                        Ajouter
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-3" align="end">
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium">Ajouter une preuve</div>
-                        <Input
-                          placeholder="Ex: Hb 8.5 g/dL (labo 15/01)"
-                          className="text-sm h-8"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                              setHpiObjectiveHighlights(prev => [...prev, { text: e.currentTarget.value.trim(), source: 'manual' }]);
-                              e.currentTarget.value = '';
-                            }
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          className="w-full h-8"
-                          onClick={(e) => {
-                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                            if (input?.value.trim()) {
-                              setHpiObjectiveHighlights(prev => [...prev, { text: input.value.trim(), source: 'manual' }]);
-                              input.value = '';
-                            }
-                          }}
-                        >
-                          Ajouter
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {hpiObjectiveHighlights.slice(0, 5).map((ev, idx) => (
-                    <Popover key={idx}>
-                      <PopoverTrigger asChild>
-                        <Badge 
-                          variant="outline" 
-                          className="text-[10px] group cursor-pointer hover:bg-muted"
-                        >
-                          <FileText className="h-2.5 w-2.5 mr-1" />
-                          {ev.text.slice(0, 30)}{ev.text.length > 30 ? '...' : ''}
-                        </Badge>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between">
-                            <span className="text-xs font-medium">Preuve objective</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                              onClick={() => setHpiObjectiveHighlights(prev => prev.filter((_, i) => i !== idx))}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <p className="text-sm">{ev.text}</p>
-                          {ev.source && ev.source !== 'manual' && (
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <FileText className="h-3 w-3" />
-                              Source: {ev.source}
-                            </div>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  ))}
-                  {hpiObjectiveHighlights.length > 5 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-muted">
-                          +{hpiObjectiveHighlights.length - 5} autres
-                        </Badge>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <div className="space-y-2">
-                          <div className="text-sm font-medium">Toutes les preuves ({hpiObjectiveHighlights.length})</div>
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                            {hpiObjectiveHighlights.map((ev, idx) => (
-                              <div key={idx} className="flex items-start justify-between p-2 bg-muted/50 rounded text-xs">
-                                <span className="flex-1">{ev.text}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 ml-2 text-muted-foreground hover:text-destructive flex-shrink-0"
-                                  onClick={() => setHpiObjectiveHighlights(prev => prev.filter((_, i) => i !== idx))}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-              </div>
-            )}
-              */}
-            {/* Show add button even when no evidence */}
+            {}
+            {
+
+}
+            {}
             {hpiObjectiveHighlights.length === 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Preuves :</span>
@@ -2529,19 +1898,19 @@ export default function ConsultationWorkspacePage() {
 
           <Separator />
 
-          {/* Assessment & Plan - Main body with problem cards and tabbed plan buckets */}
+          {}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div 
+              <div
                 className="flex items-center gap-2 cursor-pointer"
                 onClick={() => setExpandedSections({...expandedSections, problems: !expandedSections.problems})}
               >
                 <h3 className="text-sm font-semibold">Évaluation & Plan</h3>
                 {expandedSections.problems ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-7 text-xs"
                 onClick={() => {
                   const newId = crypto.randomUUID();
@@ -2581,13 +1950,13 @@ export default function ConsultationWorkspacePage() {
                     { key: 'safety_net', label: 'Alertes', items: problem.plan.safety_net },
                   ];
                   const activeBucket = planBuckets.find(b => b.key === activeTab) || planBuckets[0];
-                  
+
                   return (
-                  <div 
+                  <div
                     key={problem.id}
                     className="border border-[#EAEAEA] rounded-xl bg-white overflow-hidden"
                   >
-                    {/* Problem Header */}
+                    {}
                     <div className="p-3 border-b border-[#EAEAEA] bg-[#F9F9F9]">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 flex items-center gap-2">
@@ -2606,10 +1975,10 @@ export default function ConsultationWorkspacePage() {
                               {problem.urgency}
                             </Badge>
                           )}
-                          {/* LLM-generated content indicator */}
+                          {}
                           {problem.requiresReview && (
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="text-[10px] h-4 flex-shrink-0 bg-muted text-muted-foreground border-border"
                               title="Contenu généré par l'IA - vérification recommandée"
                             >
@@ -2637,7 +2006,7 @@ export default function ConsultationWorkspacePage() {
                       </div>
                     </div>
 
-                    {/* Plan Bucket Tabs */}
+                    {}
                     <div className="border-b">
                       <div className="flex">
                         {planBuckets.map((bucket) => {
@@ -2648,8 +2017,8 @@ export default function ConsultationWorkspacePage() {
                               key={bucket.key}
                               onClick={() => setActivePlanTabs(prev => ({ ...prev, [problem.id]: bucket.key }))}
                               className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors relative
-                                ${activeTab === bucket.key 
-                                  ? 'text-foreground border-b-2 border-primary bg-background' 
+                                ${activeTab === bucket.key
+                                  ? 'text-foreground border-b-2 border-primary bg-background'
                                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                                 }`}
                             >
@@ -2665,46 +2034,20 @@ export default function ConsultationWorkspacePage() {
                       </div>
                     </div>
 
-                    {/* Active Plan Bucket Items */}
+                    {}
                     <div className="p-3 space-y-1.5 min-h-[80px]">
                       {activeBucket.items.length > 0 ? (
                         activeBucket.items.map((planItem) => {
-                          // Find linked order from new intent-based architecture
-                          const linkedRxIntent = planItem.linkedOrderId 
-                            ? workspaceOrders.rx_intents.find(rx => rx.id === planItem.linkedOrderId)
-                            : null;
-                          const linkedReferralIntent = planItem.linkedOrderId 
-                            ? workspaceOrders.referral_intents.find(ref => ref.id === planItem.linkedOrderId)
-                            : null;
-                          const linkedFollowupIntent = planItem.linkedOrderId 
-                            ? workspaceOrders.followup_intents.find(fu => fu.id === planItem.linkedOrderId)
-                            : null;
-                          const hasLinkedOrder = linkedRxIntent || linkedReferralIntent || linkedFollowupIntent;
-                          
-                          // Check for linked Ordo item(s) (new system)
-                          const linkedOrdoIds = planItem.linkedOrdoIds ?? (planItem.linkedOrdoId ? [planItem.linkedOrdoId] : []);
-                          const linkedOrdoItems = linkedOrdoIds
-                            .map(id => ordoItems.find(o => o.id === id))
-                            .filter(Boolean) as OrdoItem[];
-                          const hasLinkedOrdo = linkedOrdoItems.length > 0;
-                          const hasAnyLink = hasLinkedOrder || hasLinkedOrdo;
 
-                          // Get predicted candidates for smart conversion preview
-                          const candidates: OrdoCandidate[] = planItem.text.trim() && !hasAnyLink
-                            ? resolveOrdoCandidates(planItem.text, { bucket: activeTab, problemTitle: problem.title })
-                            : [];
-                          const best = candidates[0];
-                          const second = candidates[1];
-                          const isLowConfidence = !best || best.score < 0.45;
-                          const isAmbiguous = !!(best && second && best.score >= 0.45 && (best.score - second.score) < 0.15);
-                          
+
                           return (
-                          <div key={planItem.id} className={`group flex items-start gap-2 relative pr-16 ${hasAnyLink ? 'bg-accent/10 dark:bg-accent/5 rounded px-2 py-1 -mx-2' : ''}`}>
+                          <div key={planItem.id} className="group flex items-start gap-2 relative pr-16">
                             {editingHpiSection === `plan-${problem.id}-${planItem.id}` ? (
                               <div className="flex-1">
-                                <SmartInput
+                                <Textarea
                                   value={planItem.text}
-                                  onChange={(newText) => {
+                                  onChange={(e) => {
+                                    const newText = e.target.value;
                                     setProblems(prev => prev.map(p =>
                                       p.id === problem.id
                                         ? {
@@ -2719,20 +2062,12 @@ export default function ConsultationWorkspacePage() {
                                         : p
                                     ));
                                   }}
-                                  placeholder="dx: rx: lab: order:"
+                                  placeholder="Ajouter un élément..."
                                   autoFocus
-                                  patientId={patientId}
-                                  consultationId={consultationId}
-                                  section="plan"
-                                  fieldType="plan_item"
-                                  problemId={problem.id}
-                                  bucket={activeTab as any}
-                                  activeProblems={problems.map(p => p.title)}
-                                  visitFocus={visitFocus}
-                                  showTriggerHints
+                                  className="min-h-[40px]"
                                   onBlur={() => {
                                     setEditingHpiSection(null);
-                                    // Remove item if text is blank
+
                                     if (!planItem.text.trim()) {
                                       setProblems(prev => prev.map(p =>
                                         p.id === problem.id
@@ -2753,7 +2088,7 @@ export default function ConsultationWorkspacePage() {
                                     if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) {
                                       e.preventDefault();
                                       setEditingHpiSection(null);
-                                      // Remove item if text is blank
+
                                       if (!planItem.text.trim()) {
                                         setProblems(prev => prev.map(p =>
                                           p.id === problem.id
@@ -2798,45 +2133,11 @@ export default function ConsultationWorkspacePage() {
                                   <span className={`text-sm leading-relaxed ${planItem.checked ? 'line-through text-muted-foreground' : ''}`}>
                                     {planItem.text}
                                   </span>
-                                  {/* Linked order indicator (old system) */}
-                                  {hasLinkedOrder && (
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                      <Badge 
-                                        variant="outline" 
-                                        className="text-[9px] h-4 px-1.5 cursor-pointer bg-accent/10 text-accent-foreground border-accent"
-                                        onClick={() => setExpandedSections({...expandedSections, orders: true})}
-                                        title="Cliquer pour voir dans les ordonnances"
-                                      >
-                                        {linkedRxIntent && '💊 Rx'}
-                                        {linkedReferralIntent && '👤 Référence'}
-                                        {linkedFollowupIntent && '📅 Suivi'}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                  {/* Linked Ordo indicator (new system) */}
-                                  {hasLinkedOrdo && linkedOrdoItems[0] && (
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                      <Badge 
-                                        variant="outline" 
-                                        className="text-[9px] h-4 px-1.5 cursor-pointer bg-accent/10 text-accent-foreground border-accent"
-                                        onClick={() => setExpandedSections({...expandedSections, orders: true})}
-                                        title="Cliquer pour voir dans Ordo Bucket"
-                                      >
-                                        {linkedOrdoItems.length === 1 ? (
-                                          <>
-                                            {getOrdoTypeIcon(linkedOrdoItems[0].type)} {linkedOrdoItems[0].type === 'medication' ? 'Rx' : linkedOrdoItems[0].type === 'lab' ? 'Labo' : linkedOrdoItems[0].type === 'imaging' ? 'Imagerie' : 'Acte'}
-                                          </>
-                                        ) : (
-                                          <>
-                                            📄 Ordo x{linkedOrdoItems.length}
-                                          </>
-                                        )}
-                                      </Badge>
-                                    </div>
-                                  )}
+
+
                                 </div>
                                 <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
-                                  
+
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -2849,20 +2150,7 @@ export default function ConsultationWorkspacePage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => {
-                                      // Also remove linked order from workspaceOrders if exists
-                                      if (planItem.linkedOrderId) {
-                                        setWorkspaceOrders(prev => ({
-                                          ...prev,
-                                          rx_intents: prev.rx_intents.filter(rx => rx.id !== planItem.linkedOrderId),
-                                          referral_intents: prev.referral_intents.filter(ref => ref.id !== planItem.linkedOrderId),
-                                          followup_intents: prev.followup_intents.filter(fu => fu.id !== planItem.linkedOrderId),
-                                        }));
-                                      }
-                                      // Also remove linked Ordo item(s) if exists
-                                      const ids = planItem.linkedOrdoIds ?? (planItem.linkedOrdoId ? [planItem.linkedOrdoId] : []);
-                                      if (ids.length > 0) {
-                                        setOrdoItems(prev => prev.filter(o => !ids.includes(o.id)));
-                                      }
+
                                       setProblems(prev => prev.map(p =>
                                         p.id === problem.id
                                           ? {
@@ -2889,8 +2177,8 @@ export default function ConsultationWorkspacePage() {
                           Aucun élément {activeBucket.label.toLowerCase()}
                         </p>
                       )}
-                      
-                      {/* Add item to current bucket */}
+
+                      {}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -2910,7 +2198,7 @@ export default function ConsultationWorkspacePage() {
                                 }
                               : p
                           ));
-                          // Start editing the new item
+
                           setTimeout(() => setEditingHpiSection(`plan-${problem.id}-${newItemId}`), 50);
                         }}
                         className="h-6 text-xs w-full justify-start text-muted-foreground hover:text-foreground"
@@ -2920,19 +2208,19 @@ export default function ConsultationWorkspacePage() {
                       </Button>
                     </div>
 
-                    {/* Evidence/Assessment - compact clickable chips */}
+                    {}
                     {problem.evidence.length > 0 && (
                       <div className="px-3 py-2 border-t bg-muted/10">
                         <div className="flex flex-wrap gap-1.5">
                           {problem.evidence.map((ev, idx) => {
-                            // Handle both string (legacy) and object (new) formats
+
                             const label = typeof ev === 'string' ? ev : ev.label;
                             const docId = typeof ev === 'string' ? null : ev.docId;
-                            
+
                             return (
-                              <Badge 
-                                key={idx} 
-                                variant="secondary" 
+                              <Badge
+                                key={idx}
+                                variant="secondary"
                                 className={`text-[10px] h-5 font-normal ${docId ? 'cursor-pointer hover:bg-secondary/80' : ''}`}
                                 onClick={docId ? () => {
                                   setReviewingDocId(docId);
@@ -2951,7 +2239,7 @@ export default function ConsultationWorkspacePage() {
                   </div>
                   );
                 })}
-                
+
                 {problems.length === 0 && (
                   <div className="text-center py-8 text-sm text-muted-foreground">
                     Aucun problème ajouté. Cliquez sur "+ Ajouter un problème" pour en créer un.
@@ -2963,10 +2251,10 @@ export default function ConsultationWorkspacePage() {
 
           <Separator />
 
-          {/* Quick Notes - Inbox Zero pattern */}
+          {}
           {quickNotes.length > 0 && (
             <div className="space-y-2">
-              <div 
+              <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={() => setExpandedSections({...expandedSections, quickNotes: !expandedSections.quickNotes})}
               >
@@ -2982,11 +2270,11 @@ export default function ConsultationWorkspacePage() {
               {expandedSections.quickNotes && (
                 <div className="space-y-2">
                   {quickNotes.map((note) => (
-                    <div 
-                      key={note.id} 
+                    <div
+                      key={note.id}
                       className="group relative bg-muted dark:bg-muted/30 border border-border dark:border-border rounded-lg p-3 hover:shadow-sm transition-all"
                     >
-                      {/* Timestamp badge */}
+                      {}
                       <div className="flex items-center gap-2 mb-1.5">
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground dark:text-muted-foreground font-medium">
                           <Clock className="h-3 w-3" />
@@ -2996,26 +2284,26 @@ export default function ConsultationWorkspacePage() {
                           À trier
                         </Badge>
                       </div>
-                      
-                      {/* Note content */}
+
+                      {}
                       <p className="text-sm leading-relaxed text-foreground pr-20">{note.text}</p>
-                      
-                      {/* Action buttons - visible on hover */}
+
+                      {}
                       <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 backdrop-blur-sm rounded-md p-0.5 border shadow-sm">
-                        {/* Insert to Now Strip - dropdown with destinations */}
+                        {}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 hover:bg-muted dark:hover:bg-muted" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 hover:bg-muted dark:hover:bg-muted"
                               title="Ajouter au résumé"
                             >
                               <ArrowUp className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 handleInsertToNowStrip(note.text.slice(0, 150), 'oneliner');
                                 setQuickNotes(prev => prev.filter(n => n.id !== note.id));
@@ -3025,7 +2313,7 @@ export default function ConsultationWorkspacePage() {
                               <FileText className="h-3.5 w-3.5 mr-2" />
                               Résumé
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 handleInsertToNowStrip(note.text.slice(0, 100), 'symptom');
                                 setQuickNotes(prev => prev.filter(n => n.id !== note.id));
@@ -3035,7 +2323,7 @@ export default function ConsultationWorkspacePage() {
                               <Activity className="h-3.5 w-3.5 mr-2" />
                               Ajouter comme symptôme
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 handleInsertToNowStrip(note.text.slice(0, 60), 'redflag');
                                 setQuickNotes(prev => prev.filter(n => n.id !== note.id));
@@ -3045,7 +2333,7 @@ export default function ConsultationWorkspacePage() {
                               <AlertCircle className="h-3.5 w-3.5 mr-2" />
                               Ajouter comme signal d'alarme
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 handleInsertToNowStrip(note.text, 'evidence');
                                 setQuickNotes(prev => prev.filter(n => n.id !== note.id));
@@ -3057,14 +2345,14 @@ export default function ConsultationWorkspacePage() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        
+
                         {/* Add to A&P - popover with problem + bucket picker */}
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 hover:bg-muted dark:hover:bg-muted" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 hover:bg-muted dark:hover:bg-muted"
                               title="Ajouter au plan"
                             >
                               <Plus className="h-3.5 w-3.5" />
@@ -3104,7 +2392,7 @@ export default function ConsultationWorkspacePage() {
                             )}
                           </PopoverContent>
                         </Popover>
-                        
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -3125,33 +2413,7 @@ export default function ConsultationWorkspacePage() {
             </div>
           )}
 
-          {/* Orders Section - Structured Ordo System */}
-          <Separator />
-          <div className="space-y-3">
-            <OrdoBucket
-              items={ordoItems}
-              onChange={setOrdoItems}
-              onGenerateAndSend={() => setShowGenerateSendDrawer(true)}
-              problemTitle={problems[0]?.title}
-              patientId={patientId}
-              consultationId={consultationId}
-            />
-          </div>
 
-          {/* Generate & Send Drawer */}
-          <GenerateSendDrawer
-            open={showGenerateSendDrawer}
-            onOpenChange={setShowGenerateSendDrawer}
-            items={ordoItems}
-            patientName={patient?.name || ''}
-            patientEmail={patient?.email}
-            patientPhone={patient?.phone}
-            onSend={async (documents, recipients) => {
-              // TODO: Implement actual send logic via API
-              console.log('Sending documents:', documents, 'to:', recipients);
-              toast.success('Documents envoyés avec succès');
-            }}
-          />
 
         </div>
         </div>
@@ -3177,7 +2439,7 @@ export default function ConsultationWorkspacePage() {
           <>
         {/* Header */}
         <div className="border-b px-3 py-2.5 bg-gradient-to-r from-primary/5 to-transparent">
-          <div 
+          <div
             className="flex items-start gap-3 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => router.push(`/patients/${patientId}`)}
             title="Voir le profil patient"
@@ -3220,7 +2482,7 @@ export default function ConsultationWorkspacePage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => {
                     resetConsultation(consultationId, {
                       onSuccess: () => {
@@ -3248,7 +2510,7 @@ export default function ConsultationWorkspacePage() {
             </Button>
           </div>
           </div>
-          
+
         </div>
 
         {/* Chat Messages */}
@@ -3265,18 +2527,18 @@ export default function ConsultationWorkspacePage() {
                   if (questionMatch && questionMatch[1] && questionMatch[1].trim()) {
                     return { ...msg, content: questionMatch[1].trim() };
                   }
-                  // If no question found, skip this message
+
                   return null;
                 }
                 return msg;
               })
               .filter((msg): msg is NonNullable<typeof msg> => {
                 if (!msg) return false;
-                // Skip empty assistant messages
+
                 if (msg.role === 'assistant' && !msg.content.trim()) return false;
                 return true;
               });
-            
+
             if (visibleMessages.length === 0) {
               return (
                 <div className="flex flex-col items-center pt-8 justify-center h-full text-center space-y-3">
@@ -3314,7 +2576,7 @@ export default function ConsultationWorkspacePage() {
                 </div>
               );
             }
-            
+
             return (
               <div className="space-y-3">
                 {visibleMessages.map((msg, idx) => (
@@ -3357,9 +2619,9 @@ export default function ConsultationWorkspacePage() {
                           >
                             {msg.content}
                           </ReactMarkdown>
-                          {/* Doc traceability badges */}
+                          {}
                           {(() => {
-                            // Collect doc_ids from both: 1) structured sources field, 2) inline text (legacy)
+
                             const sourcesFromField = (msg as any).sources
                               ? (msg as any).sources.split(',').filter(Boolean)
                               : [];
@@ -3419,7 +2681,7 @@ export default function ConsultationWorkspacePage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-48 text-xs">
-                            {/* Now Strip destinations */}
+                            {}
                             <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Résumé</div>
                             <DropdownMenuItem onClick={() => handleInsertToNowStrip(msg.content.slice(0, 150), 'oneliner')}>
                               Résumé
@@ -3433,7 +2695,7 @@ export default function ConsultationWorkspacePage() {
                             <DropdownMenuItem onClick={() => handleInsertToNowStrip(msg.content, 'evidence')}>
                               Ajouter aux preuves
                             </DropdownMenuItem>
-                            
+
                             {/* A&P destinations - with bucket picker */}
                             {problems.length > 0 && (
                               <>
@@ -3458,7 +2720,7 @@ export default function ConsultationWorkspacePage() {
                                 ))}
                               </>
                             )}
-                            
+
                             <div className="border-t mt-1 pt-1">
                               <DropdownMenuItem onClick={() => {
                                 setQuickNotes(prev => [...prev, {
@@ -3490,9 +2752,9 @@ export default function ConsultationWorkspacePage() {
                     <AvatarFallback className="bg-[var(--medicai-green-dark)] text-foreground">AI</AvatarFallback>
                   </Avatar>
                   <div className="bg-muted rounded-lg px-3 py-2">
-                    <svg 
-                      width="60" 
-                      height="20" 
+                    <svg
+                      width="60"
+                      height="20"
                       viewBox="0 0 100 28"
                     >
                       <polyline
@@ -3574,9 +2836,9 @@ export default function ConsultationWorkspacePage() {
           </div>
         </div>
 
-        {/* Input Area - Modern Integrated Design */}
+        {}
         <div className="border-t bg-muted/50">
-          {/* Pending message undo banner */}
+          {}
           {pendingMessage && (
             <div className="px-3 py-2 bg-muted border-b flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Sending message...</span>
@@ -3591,10 +2853,10 @@ export default function ConsultationWorkspacePage() {
               </Button>
             </div>
           )}
-          
-          {/* Main Input Container */}
+
+          {}
           <div className="p-2">
-            {/* Mode indicator bar */}
+            {}
             <div className="flex items-center gap-1 mb-1.5 px-1">
               <div className="flex items-center gap-0.5 bg-muted/50 rounded-md p-0.5">
                 <button
@@ -3626,12 +2888,12 @@ export default function ConsultationWorkspacePage() {
                   Note
                 </button>
               </div>
-              {/*<span className="text-[9px] text-muted-foreground ml-1">⌃Q / ⌃⇧N</span>*/}
+              {}
             </div>
 
-            {/* Input Row */}
+            {}
             <div className="flex items-center gap-1.5 px-1.5 py-1 bg-background relative">
-              {/* Contenteditable input */}
+              {}
               <div className="flex-1 relative min-h-[20px] max-h-[100px] overflow-y-auto">
                 <div
                   ref={inputRef}
@@ -3643,7 +2905,7 @@ export default function ConsultationWorkspacePage() {
                     const value = e.currentTarget.textContent || '';
                     if (composerMode === 'ask') {
                       setMessage(value);
-                      // Check for quick command trigger
+
                       if (value === '/' || (value.startsWith('/') && value.length <= 10)) {
                         setShowQuickCommands(true);
                         setQuickCommandSearch(value.slice(1));
@@ -3655,7 +2917,7 @@ export default function ConsultationWorkspacePage() {
                     }
                   }}
                   onKeyDown={(e) => {
-                    // Enter to send (without shift)
+
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       if (composerMode === 'ask' && message.trim()) {
@@ -3666,14 +2928,14 @@ export default function ConsultationWorkspacePage() {
                         setNoteInput('');
                       }
                     }
-                    // Escape to close quick commands
+
                     if (showQuickCommands && e.key === 'Escape') {
                       e.preventDefault();
                       setShowQuickCommands(false);
                     }
                   }}
                   onPaste={(e) => {
-                    // Handle paste as plain text
+
                     e.preventDefault();
                     const text = e.clipboardData.getData('text/plain');
                     document.execCommand('insertText', false, text);
@@ -3681,7 +2943,7 @@ export default function ConsultationWorkspacePage() {
                 />
               </div>
 
-              {/* Quick commands dropdown */}
+              {}
               {showQuickCommands && composerMode === 'ask' && (
                 <div className="absolute bottom-full left-0 mb-1 w-44 bg-popover border rounded-lg shadow-lg overflow-hidden z-50">
                   <div className="p-0.5">
@@ -3696,7 +2958,7 @@ export default function ConsultationWorkspacePage() {
                             if (inputRef.current) {
                               inputRef.current.textContent = item.cmd;
                               inputRef.current.focus();
-                              // Move cursor to end
+
                               const range = document.createRange();
                               const sel = window.getSelection();
                               range.selectNodeContents(inputRef.current);
@@ -3715,9 +2977,9 @@ export default function ConsultationWorkspacePage() {
                 </div>
               )}
 
-              {/* Right Action Buttons */}
+              {}
               <div className="flex items-center gap-1">
-                <Button 
+                <Button
                   onClick={composerMode === 'ask' ? handleSendWithUndo : handleAddNote}
                   disabled={
                     composerMode === 'ask'
@@ -3756,9 +3018,7 @@ export default function ConsultationWorkspacePage() {
         )}
       </div>
 
-      
-
-      {/* Force Overwrite Confirmation Dialog */}
+      {}
       <Dialog open={showForceOverwriteConfirm} onOpenChange={setShowForceOverwriteConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -3774,19 +3034,19 @@ export default function ConsultationWorkspacePage() {
             <Button variant="outline" onClick={() => setShowForceOverwriteConfirm(false)}>
               Annuler
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => {
                 setShowForceOverwriteConfirm(false);
                 setRegenerateMode('overwrite');
-                // Reset local state before regenerating
+
                 setHpiOneLiner('');
                 setHpiSymptoms([]);
                 setHpiRedFlags([]);
                 setHpiSinceLastVisit('');
                 setHpiObjectiveHighlights([]);
                 setProblems([]);
-                lastFilledVersionRef.current = -1; // Force re-fill
+                lastFilledVersionRef.current = -1;
                 generateWorkspace({ force: true, mode: 'overwrite' }, {
                   onSuccess: () => {
                     setWorkspaceVersion(prev => prev + 1);
@@ -3802,7 +3062,7 @@ export default function ConsultationWorkspacePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Sign Consultation Confirmation Dialog */}
+      {}
       <Dialog open={showSignConfirm} onOpenChange={setShowSignConfirm}>
         <DialogContent className="sm:max-w-lg p-0 gap-0 flex flex-col max-h-[85vh]">
           <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
@@ -3815,11 +3075,11 @@ export default function ConsultationWorkspacePage() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Scrollable content */}
+          {}
           <ScrollArea className="flex-1 overflow-y-auto">
             <div className="px-6 py-4 space-y-4">
 
-              {/* Consultation recap */}
+              {}
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Récapitulatif</p>
                 <div className="space-y-1.5 text-sm">
@@ -3842,168 +3102,24 @@ export default function ConsultationWorkspacePage() {
                 </div>
               </div>
 
-              {/* Prescriptions */}
-              {workspaceOrders.rx_intents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <Pill className="h-3 w-3" /> Prescriptions ({workspaceOrders.rx_intents.length})
-                  </p>
-                  <div className="space-y-1">
-                    {workspaceOrders.rx_intents.map((rx, i) => (
-                      <div key={rx.id || i} className="text-sm bg-muted/50 rounded-md px-3 py-2 space-y-0.5">
-                        {rx.medications.map((med, j) => (
-                          <div key={j} className="flex items-start gap-2">
-                            <span className="text-muted-foreground mt-0.5">•</span>
-                            <span>
-                              <span className="font-medium">{med.name}</span>
-                              {med.dosage && <span className="text-muted-foreground"> {med.dosage}</span>}
-                              {med.frequency && <span className="text-muted-foreground"> — {med.frequency}</span>}
-                              {med.duration && <span className="text-muted-foreground"> × {med.duration}</span>}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Referrals */}
-              {workspaceOrders.referral_intents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <ExternalLink className="h-3 w-3" /> Orientations ({workspaceOrders.referral_intents.length})
-                  </p>
-                  <div className="space-y-1">
-                    {workspaceOrders.referral_intents.map((ref, i) => (
-                      <div key={ref.id || i} className="text-sm bg-muted/50 rounded-md px-3 py-2 flex items-start gap-2">
-                        <span className="text-muted-foreground mt-0.5">•</span>
-                        <span>
-                          <span className="font-medium">{ref.to_specialty}</span>
-                          {ref.to_provider_name && <span className="text-muted-foreground"> — Dr. {ref.to_provider_name}</span>}
-                          {ref.reason && <span className="text-muted-foreground"> : {ref.reason}</span>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Follow-ups */}
-              {workspaceOrders.followup_intents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" /> Suivis ({workspaceOrders.followup_intents.length})
-                  </p>
-                  <div className="space-y-1">
-                    {workspaceOrders.followup_intents.map((fu, i) => (
-                      <div key={fu.id || i} className="text-sm bg-muted/50 rounded-md px-3 py-2 flex items-start gap-2">
-                        <span className="text-muted-foreground mt-0.5">•</span>
-                        <span>
-                          <span className="font-medium">{fu.timeframe}</span>
-                          {fu.reason && <span className="text-muted-foreground"> — {fu.reason}</span>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Lab / Imaging */}
-              {workspaceOrders.lab_imaging_intents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <FileImage className="h-3 w-3" /> Laboratoire / Imagerie ({workspaceOrders.lab_imaging_intents.length})
-                  </p>
-                  <div className="space-y-1">
-                    {workspaceOrders.lab_imaging_intents.map((li, i) => (
-                      <div key={li.id || i} className="text-sm bg-muted/50 rounded-md px-3 py-2">
-                        {li.tests.map((t, j) => (
-                          <div key={j} className="flex items-start gap-2">
-                            <span className="text-muted-foreground mt-0.5">•</span>
-                            <span className="font-medium">{t.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Generated documents */}
-              {workspaceOrders.documents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <FileText className="h-3 w-3" /> Documents générés ({workspaceOrders.documents.length})
-                  </p>
-                  <div className="space-y-1">
-                    {workspaceOrders.documents.map((doc, i) => {
-                      const typeLabels: Record<string, string> = {
-                        prescription: 'Ordonnance',
-                        referral_letter: 'Lettre d\'orientation',
-                        followup_plan: 'Plan de suivi',
-                        lab_order: 'Demande d\'examens',
-                        visit_note: 'Note de visite',
-                      };
-                      const statusLabels: Record<string, string> = {
-                        draft: 'Brouillon',
-                        reviewed: 'Revu',
-                        signed: 'Signé',
-                        sent: 'Envoyé',
-                        delivered: 'Délivré',
-                        failed: 'Échoué',
-                      };
-                      return (
-                        <div key={doc.id || i} className="text-sm bg-muted/50 rounded-md px-3 py-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{typeLabels[doc.artifact_type] || doc.artifact_type}</span>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] h-5">
-                            {statusLabels[doc.status] || doc.status}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Warnings */}
-              {(workspaceOrders.documents.filter(d => d.status === 'draft').length > 0 ||
-                workspaceOrders.pending_actions.filter(a => a.status === 'pending').length > 0 ||
-                quickNotes.length > 0) && (
+              {quickNotes.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  {workspaceOrders.documents.filter(d => d.status === 'draft').length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{workspaceOrders.documents.filter(d => d.status === 'draft').length} document{workspaceOrders.documents.filter(d => d.status === 'draft').length !== 1 ? 's' : ''} encore en brouillon</span>
-                    </div>
-                  )}
-                  {workspaceOrders.pending_actions.filter(a => a.status === 'pending').length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{workspaceOrders.pending_actions.filter(a => a.status === 'pending').length} action{workspaceOrders.pending_actions.filter(a => a.status === 'pending').length !== 1 ? 's' : ''} en attente</span>
-                    </div>
-                  )}
-                  {quickNotes.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{quickNotes.length} note{quickNotes.length !== 1 ? 's' : ''} non triée{quickNotes.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{quickNotes.length} note{quickNotes.length !== 1 ? 's' : ''} non triée{quickNotes.length !== 1 ? 's' : ''}</span>
+                  </div>
                 </div>
               )}
 
             </div>
           </ScrollArea>
 
-          {/* Footer */}
+          {}
           <div className="px-6 py-4 border-t shrink-0 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowSignConfirm(false)}>
               Annuler
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 setShowSignConfirm(false);
                 handleSignConsultation();
@@ -4017,7 +3133,7 @@ export default function ConsultationWorkspacePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Document Review Sheet */}
+      {}
       <Sheet open={documentSheetOpen} onOpenChange={(open) => {
         setDocumentSheetOpen(open);
         if (!open) {
@@ -4051,7 +3167,7 @@ export default function ConsultationWorkspacePage() {
           {reviewingDocument ? (
             <>
               <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden px-6 py-4">
-              {/* Left: Original Document */}
+              {}
               <div className="border rounded-lg overflow-hidden flex flex-col">
                 <div className="bg-muted p-3 border-b">
                   <h3 className="font-medium text-sm">Document original</h3>
@@ -4067,7 +3183,7 @@ export default function ConsultationWorkspacePage() {
                       />
                     ) : (
                       <>
-                        {/* Zoom Controls */}
+                        {}
                         <div className="absolute top-3 right-3 z-10 flex gap-2">
                           <button
                             onClick={() => setImageZoom(Math.min(imageZoom + 0.25, 3))}
@@ -4100,8 +3216,8 @@ export default function ConsultationWorkspacePage() {
                             </svg>
                           </button>
                         </div>
-                        {/* Image Container */}
-                        <div 
+                        {}
+                        <div
                           className="w-full h-full overflow-hidden relative flex items-center justify-center"
                           onWheel={(e) => {
                             e.preventDefault();
@@ -4145,9 +3261,9 @@ export default function ConsultationWorkspacePage() {
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 setIsDragging(true);
-                                setDragStart({ 
-                                  x: e.clientX - imagePosition.x, 
-                                  y: e.clientY - imagePosition.y 
+                                setDragStart({
+                                  x: e.clientX - imagePosition.x,
+                                  y: e.clientY - imagePosition.y
                                 });
                               }}
                               onMouseMove={(e) => {
@@ -4184,7 +3300,7 @@ export default function ConsultationWorkspacePage() {
                 </div>
               </div>
 
-              {/* Right: Extracted Data */}
+              {}
               <div className="border rounded-lg overflow-hidden flex flex-col">
                 <div className="bg-muted p-3 border-b flex items-center justify-between">
                   <h3 className="font-medium text-sm">Données extraites</h3>
@@ -4224,15 +3340,14 @@ export default function ConsultationWorkspacePage() {
                           className="h-7 text-xs bg-black hover:bg-neutral-800"
                           onClick={async () => {
                             if (!editedDocumentContent || !reviewingDocId) return;
-                            
+
                             setIsSavingExtractedData(true);
                             try {
                               await documentsApi.updateExtractedData(reviewingDocId, editedDocumentContent);
                               toast.success('Données mises à jour avec succès');
-                              
-                              // Refresh the document
+
                               queryClient.invalidateQueries({ queryKey: ['documents', reviewingDocId] });
-                              
+
                               setIsEditingExtractedData(false);
                               setEditedDocumentContent(null);
                             } catch (error) {
@@ -4252,13 +3367,13 @@ export default function ConsultationWorkspacePage() {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                   <div className="space-y-4">
-                    {/* Document Type */}
+                    {}
                     <div>
                       <h4 className="font-medium text-sm mb-2">Type de document</h4>
                       <p className="text-sm">{reviewingDocument.document_type}</p>
                     </div>
 
-                    {/* Date of Service */}
+                    {}
                     {(reviewingDocument.date_of_service || reviewingDocument.content?.metadata?.date_of_service) && (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Date de service</h4>
@@ -4272,7 +3387,7 @@ export default function ConsultationWorkspacePage() {
 
                     <Separator />
 
-                    {/* Lab Results */}
+                    {}
                     {reviewingDocument.document_type === 'lab' && reviewingDocument.content?.structured?.tests && (
                       <div>
                         <h4 className="font-medium text-sm mb-3">Analyses de laboratoire</h4>
@@ -4341,7 +3456,7 @@ export default function ConsultationWorkspacePage() {
                       </div>
                     )}
 
-                    {/* Radiology Results */}
+                    {}
                     {reviewingDocument.document_type === 'radiology' && (
                       <div className="space-y-4">
                         {(isEditingExtractedData ? editedDocumentContent?.metadata?.type_examen : reviewingDocument.content?.metadata?.type_examen) && (
@@ -4442,11 +3557,11 @@ export default function ConsultationWorkspacePage() {
                       </div>
                     )}
 
-                    {/* Prescription Results */}
+                    {}
                     {reviewingDocument.document_type === 'prescription' && (
                       <div className="space-y-4">
-                        {/* Medications */}
-                        {(isEditingExtractedData ? editedDocumentContent?.structured?.items : reviewingDocument.content?.structured?.items) && 
+                        {}
+                        {(isEditingExtractedData ? editedDocumentContent?.structured?.items : reviewingDocument.content?.structured?.items) &&
                          (isEditingExtractedData ? editedDocumentContent?.structured?.items?.length > 0 : reviewingDocument.content.structured.items.length > 0) && (
                           <div>
                             <h4 className="font-medium text-sm mb-3">Médicaments</h4>
@@ -4550,9 +3665,9 @@ export default function ConsultationWorkspacePage() {
                       </div>
                     )}
 
-                    {/* Raw JSON for other types or debugging */}
-                    {reviewingDocument.document_type !== 'lab' && 
-                     reviewingDocument.document_type !== 'radiology' && 
+                    {}
+                    {reviewingDocument.document_type !== 'lab' &&
+                     reviewingDocument.document_type !== 'radiology' &&
                      reviewingDocument.document_type !== 'prescription' && (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Données brutes</h4>

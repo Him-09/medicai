@@ -194,7 +194,6 @@ export default function PatientWorkspacePage() {
   const { mutate: createConsultation, isPending: isCreating } = useCreateConsultation();
   const queryClient = useQueryClient();
 
-  // Filter consultations for this patient
   const patientConsultations = allConsultations?.filter(
     (c) => c.patientId === `#${patientId}`
   ) || [];
@@ -249,7 +248,7 @@ export default function PatientWorkspacePage() {
         router.push('/patients');
       },
       onError: (error: any) => {
-        // Check if error is about active consultations
+
         const errorDetail = error.response?.data?.detail;
         if (errorDetail?.active_consultations) {
           setActiveConsultationIds(errorDetail.active_consultations);
@@ -264,25 +263,25 @@ export default function PatientWorkspacePage() {
   };
 
   const handleNewConsultation = () => {
-    // Check if patient already has an active consultation
+
     const hasActiveConsultation = patientConsultations.some(
       (c) => c.status === 'active'
     );
-    
+
     if (hasActiveConsultation) {
-      // Show toast notification and navigate to active consultation
+
       const activeConsultation = patientConsultations.find(
         (c) => c.status === 'active'
       );
-      
+
       toast.warning(
         'Active consultation exists',
-        { 
+        {
           description: 'This patient already has an active consultation. Redirecting...',
           duration: 3000,
         }
       );
-      
+
       if (activeConsultation) {
         setTimeout(() => {
           router.push(`/consultations/${activeConsultation.id}`);
@@ -290,8 +289,7 @@ export default function PatientWorkspacePage() {
       }
       return;
     }
-    
-    // Open dialog to select date and time
+
     setConsultationDialogOpen(true);
     setConsultationDate(new Date());
     setConsultationTime('09:00');
@@ -299,13 +297,13 @@ export default function PatientWorkspacePage() {
   };
 
   const handleCreateConsultation = () => {
-    // Combine date and time
+
     const [hours, minutes] = consultationTime.split(':').map(Number);
     const dateTime = new Date(consultationDate);
     dateTime.setHours(hours, minutes, 0, 0);
-    
+
     setConsultationError('');
-    
+
     createConsultation(
       { patientId, name: consultationName || undefined, consultationTime: dateTime },
       {
@@ -344,16 +342,13 @@ export default function PatientWorkspacePage() {
       return;
     }
 
-    // Close dialog immediately - uploads continue in background
     setUploadDialogOpen(false);
 
-    // Track upload progress with individual file toasts
     const fileToasts = new Map<string, string | number>();
     const uploadResults = { success: 0, failed: 0, duplicate: 0 };
 
-    // Upload all files in parallel
     const uploadPromises = selectedFiles.map(async (file) => {
-      // Create a toast for this file
+
       const fileToastId = toast.loading(
         ` ${file.name}`,
         {
@@ -366,7 +361,7 @@ export default function PatientWorkspacePage() {
       let processingTimeoutId: NodeJS.Timeout | null = null;
 
       try {
-        // Schedule processing stage update
+
         processingTimeoutId = setTimeout(() => {
           toast.loading(
             ` ${file.name}`,
@@ -378,15 +373,12 @@ export default function PatientWorkspacePage() {
           );
         }, 2000);
 
-        // Direct API call for parallel uploads
         await documentsApi.uploadToPatient(patientId, file);
-        
-        // Clear the timeout if still pending
+
         if (processingTimeoutId) {
           clearTimeout(processingTimeoutId);
         }
-        
-        // Mark as success
+
         toast.success(
           `✓ ${file.name}`,
           {
@@ -396,16 +388,15 @@ export default function PatientWorkspacePage() {
           }
         );
       } catch (error: any) {
-        // Clear the processing timeout on any error
+
         if (processingTimeoutId) {
           clearTimeout(processingTimeoutId);
         }
 
-        // Check for duplicate document (409 conflict)
         if (error.response?.status === 409) {
           const detail = error.response?.data?.detail;
           if (detail?.existing_doc_id && detail?.can_reassign) {
-            // Show duplicate dialog instead of error
+
             setDuplicateDocInfo({
               filename: file.name,
               docId: detail.existing_doc_id,
@@ -413,8 +404,7 @@ export default function PatientWorkspacePage() {
               file: file,
             });
             setDuplicateDialogOpen(true);
-            
-            // Update the toast to show duplicate status
+
             toast.warning(
               ` ${file.name}`,
               {
@@ -424,11 +414,10 @@ export default function PatientWorkspacePage() {
               }
             );
             uploadResults.duplicate++;
-            throw new Error('duplicate'); // Mark as handled duplicate
+            throw new Error('duplicate');
           }
         }
-        
-        // Mark as error
+
         toast.error(
           `✗ ${file.name}`,
           {
@@ -438,24 +427,21 @@ export default function PatientWorkspacePage() {
           }
         );
         uploadResults.failed++;
-        throw error; // Re-throw for Promise.allSettled
+        throw error;
       }
-      
+
       uploadResults.success++;
     });
 
-    // Wait for all uploads to complete in background
     Promise.allSettled(uploadPromises).then((results) => {
-      // Invalidate documents cache to refresh the list
+
       queryClient.invalidateQueries({ queryKey: ['patients', patientId, 'documents'] });
 
-      // Show summary notification only if there were actual uploads (not just duplicates)
       const { success, failed, duplicate } = uploadResults;
       const total = success + failed + duplicate;
-      
-      if (total === 0) return; // No files processed
-      
-      // Only show summary if there were successes or failures (not just duplicates)
+
+      if (total === 0) return;
+
       if (success > 0 || failed > 0) {
         if (failed === 0 && duplicate === 0) {
           toast.success(
@@ -467,7 +453,7 @@ export default function PatientWorkspacePage() {
           if (success > 0) parts.push(`${success} succeeded`);
           if (failed > 0) parts.push(`${failed} failed`);
           if (duplicate > 0) parts.push(`${duplicate} duplicate${duplicate > 1 ? 's' : ''}`);
-          
+
           toast.info(
             parts.join(', '),
             { duration: 5000 }
@@ -476,14 +462,13 @@ export default function PatientWorkspacePage() {
       }
     });
 
-    // Reset form state
     setSelectedFiles([]);
     setUploadError('');
     setUploadingFiles(new Map());
   };
 
   const handleViewAllRecords = () => {
-    // Switch to documents tab
+
     const documentsTab = document.querySelector('[value="documents"]') as HTMLElement;
     documentsTab?.click();
   };
@@ -502,7 +487,6 @@ export default function PatientWorkspacePage() {
     .join('')
     .toUpperCase();
 
-  // Calculate age from DOB
   const calculateAge = (dob: string) => {
     const birthDate = new Date(dob);
     const today = new Date();
@@ -513,11 +497,9 @@ export default function PatientWorkspacePage() {
   };
   const patientAge = patient.dob ? calculateAge(patient.dob) : null;
 
-  // Check for active consultation
   const activeConsultation = patientConsultations.find(c => c.status === 'active');
   const hasActiveConsultation = !!activeConsultation;
 
-  // Build timeline items
   interface TimelineItem {
     id: string;
     date: string;
@@ -532,12 +514,11 @@ export default function PatientWorkspacePage() {
 
   const timelineItems: TimelineItem[] = [];
 
-  // Add consultations to timeline
   patientConsultations.forEach(consultation => {
-    const dateObj = consultation.consultationTime 
-      ? new Date(consultation.consultationTime) 
+    const dateObj = consultation.consultationTime
+      ? new Date(consultation.consultationTime)
       : new Date(consultation.createdAt);
-    
+
     timelineItems.push({
       id: consultation.id,
       date: format(dateObj, 'MMM d, yyyy'),
@@ -549,16 +530,15 @@ export default function PatientWorkspacePage() {
     });
   });
 
-  // Add documents to timeline
   if (documents && documents.length > 0) {
     documents.forEach(doc => {
       const dateStr = doc.date_of_service || doc.doc_date;
       if (!dateStr) return;
-      
+
       const dateObj = new Date(dateStr);
       let type: TimelineItem['type'] = 'document';
       let title = doc.document_type || 'Document';
-      
+
       const docType = doc.document_type?.toLowerCase() || '';
       if (docType.includes('lab')) {
         type = 'lab';
@@ -570,7 +550,7 @@ export default function PatientWorkspacePage() {
         type = 'prescription';
         title = 'Prescription';
       }
-      
+
       timelineItems.push({
         id: doc.doc_id,
         date: format(dateObj, 'MMM d, yyyy'),
@@ -582,7 +562,6 @@ export default function PatientWorkspacePage() {
     });
   }
 
-  // Sort timeline by date - will be further sorted based on user selection
   const sortedTimelineItems = [...timelineItems].sort((a, b) => {
     if (sortOrder === 'newest') {
       return b.dateObj.getTime() - a.dateObj.getTime();
@@ -591,14 +570,12 @@ export default function PatientWorkspacePage() {
     }
   });
 
-  // Group timeline by date
   const groupedTimeline = sortedTimelineItems.reduce((acc: Record<string, TimelineItem[]>, item) => {
     if (!acc[item.date]) acc[item.date] = [];
     acc[item.date].push(item);
     return acc;
   }, {});
 
-  // Extract clinical data from snapshot and patient
   const activeProblems: string[] = patient.active_problems || snapshot?.active_problems || [];
   const currentMeds: Array<{ name: string; dose: string; frequency?: string; form?: string; duration?: string }> = snapshot?.current_medications?.map((med: any) => ({
     name: med.name || med.drug_name || med,
@@ -608,24 +585,21 @@ export default function PatientWorkspacePage() {
     duration: med.duration || ''
   })) || [];
   const allergies: string[] = patient.allergies || snapshot?.allergies || [];
-  
-  // Extract key conditions from medical history (used as fallback for active_problems)
+
   const keyConditionsFromHistory: string[] = [
     ...(patient.medical_history?.match(/\b(DM2|T2DM|diabetes|HTN|hypertension|CKD|chronic kidney disease|CHF|heart failure|COPD|asthma)\b/gi) || []).slice(0, 3)
   ].map(c => {
-    // Normalize common abbreviations
+
     const normalized = c.toUpperCase();
     if (normalized.includes('DIABETES') || normalized === 'T2DM') return 'DM2';
     if (normalized.includes('HYPERTENSION')) return 'HTN';
     if (normalized.includes('KIDNEY')) return 'CKD';
     if (normalized.includes('HEART')) return 'CHF';
     return normalized;
-  }).filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+  }).filter((v, i, a) => a.indexOf(v) === i);
 
-  // Use active problems from snapshot, or fall back to extracted key conditions
   const keyConditions = activeProblems.length > 0 ? activeProblems : keyConditionsFromHistory;
 
-  // Get abnormal labs from snapshot (flag 'H' = high, 'L' = low)
   const abnormalLabs = snapshot?.latest_lab?.tests?.filter(
     (t: any) => t.flag && (t.flag.toUpperCase() === 'H' || t.flag.toUpperCase() === 'L')
   ).map((t: any) => ({
@@ -637,24 +611,24 @@ export default function PatientWorkspacePage() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Compact Header - Clinical Cockpit Style */}
+      {}
       <div className="border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Left: Patient Identity + Clinical Context */}
+          {}
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
               <AvatarFallback className="text-lg font-semibold">{initials}</AvatarFallback>
             </Avatar>
             <div className="space-y-1.5">
-              {/* Name */}
+              {}
               <h1 className="text-xl font-bold">{patient.name}</h1>
-              
-              {/* Main Demographics: Age • Sex • DOB • Allergies • Key Conditions */}
+
+              {}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-muted-foreground">
                   {patientAge}{patient.sex ? patient.sex : ''} • {patient.dob}
                 </span>
-                
+
                 {allergies.length > 0 && (
                   <>
                     <span className="text-muted-foreground">•</span>
@@ -664,7 +638,7 @@ export default function PatientWorkspacePage() {
                     </Badge>
                   </>
                 )}
-                
+
                 {keyConditions.length > 0 && (
                   <>
                     <span className="text-muted-foreground">•</span>
@@ -675,12 +649,12 @@ export default function PatientWorkspacePage() {
                     ))}
                   </>
                 )}
-                
+
               </div>
-              
-              {/* Secondary Row: Contact + Patient ID */}
+
+              {}
               <div className="flex items-center gap-3 flex-wrap">
-                {/* Patient ID with copy */}
+                {}
                 {patient.patientId && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">{patient.patientId}</span>
@@ -697,8 +671,8 @@ export default function PatientWorkspacePage() {
                     </Button>
                   </div>
                 )}
-                
-                {/* Phone with Call/WhatsApp dropdown */}
+
+                {}
                 {patient.phone && (
                   <>
                     <span className="text-muted-foreground">•</span>
@@ -738,8 +712,8 @@ export default function PatientWorkspacePage() {
                     </DropdownMenu>
                   </>
                 )}
-                
-                {/* Email in Contact dropdown */}
+
+                {}
                 {patient.email && (
                   <>
                     <span className="text-muted-foreground">•</span>
@@ -783,8 +757,8 @@ export default function PatientWorkspacePage() {
               <Upload className="h-4 w-4 mr-1" />
               Téléverser
             </Button>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={() => {
                 if (hasActiveConsultation) {
                   router.push(`/consultations/${activeConsultation!.id}`);
@@ -844,7 +818,7 @@ export default function PatientWorkspacePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              
+
               {/* Filters and Sort */}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -889,7 +863,7 @@ export default function PatientWorkspacePage() {
                     Ordonnances
                   </Button>
                 </div>
-                
+
                 <Select value={sortOrder} onValueChange={(value: 'newest' | 'oldest') => setSortOrder(value)}>
                   <SelectTrigger className="w-[130px] h-8">
                     <SelectValue placeholder="Sort" />
@@ -902,7 +876,7 @@ export default function PatientWorkspacePage() {
               </div>
             </div>
           </div>
-          
+
           {/* Timeline Items */}
           <div className="flex-1 overflow-y-auto">
             <div className="px-6 py-4">
@@ -916,7 +890,7 @@ export default function PatientWorkspacePage() {
                       if (documentFilter === 'labs' && item.type !== 'lab') return false;
                       if (documentFilter === 'imaging' && item.type !== 'imaging') return false;
                       if (documentFilter === 'prescriptions' && item.type !== 'prescription') return false;
-                      
+
                       // Filter by search query
                       if (searchQuery) {
                         const query = searchQuery.toLowerCase();
@@ -925,7 +899,7 @@ export default function PatientWorkspacePage() {
                         const matchesStatus = item.status?.toLowerCase().includes(query);
                         return matchesTitle || matchesDate || matchesStatus;
                       }
-                      
+
                       return true;
                     })
                     .sort((a, b) => {
@@ -946,20 +920,20 @@ export default function PatientWorkspacePage() {
                       {date}
                     </div>
                   </div>
-                  
+
                   {/* Timeline Items */}
                   <div className="space-y-3">
                     {items.map((item) => {
                       const isConsultation = item.type === 'consultation';
                       const consultation = isConsultation ? patientConsultations.find(c => c.id === item.id) : null;
-                      
+
                       return (
                         <div
                           key={item.id}
                           className={cn(
                             "group border border-[#EAEAEA] rounded-xl transition-all bg-white overflow-hidden",
-                            isConsultation && consultation?.status === 'canceled' 
-                              ? "opacity-60 cursor-not-allowed" 
+                            isConsultation && consultation?.status === 'canceled'
+                              ? "opacity-60 cursor-not-allowed"
                               : "hover:border-[var(--medicai-green)] hover:shadow-sm cursor-pointer"
                           )}
                           onClick={() => {
@@ -995,7 +969,7 @@ export default function PatientWorkspacePage() {
                               {item.type === 'prescription' && <Pill className="h-4 w-4" />}
                               {item.type === 'document' && <FileText className="h-4 w-4" />}
                             </div>
-                            
+
                             {/* Content - Single row layout */}
                             <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
                               {/* Title + Badges */}
@@ -1029,7 +1003,7 @@ export default function PatientWorkspacePage() {
                                   </Badge>
                                 )}
                               </div>
-                              
+
                               {/* Right side: Action Button */}
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 {/* Action Button */}
@@ -1086,7 +1060,7 @@ export default function PatientWorkspacePage() {
                   </div>
                 </div>
               ))}
-              
+
               {(() => {
                 const hasFilteredItems = Object.entries(groupedTimeline)
                   .map(([date, items]) => ({
@@ -1098,7 +1072,7 @@ export default function PatientWorkspacePage() {
                         if (documentFilter === 'labs' && item.type !== 'lab') return false;
                         if (documentFilter === 'imaging' && item.type !== 'imaging') return false;
                         if (documentFilter === 'prescriptions' && item.type !== 'prescription') return false;
-                        
+
                         // Filter by search query
                         if (searchQuery) {
                           const query = searchQuery.toLowerCase();
@@ -1107,13 +1081,13 @@ export default function PatientWorkspacePage() {
                           const matchesStatus = item.status?.toLowerCase().includes(query);
                           return matchesTitle || matchesDate || matchesStatus;
                         }
-                        
+
                         return true;
                       })
                   }))
                   .filter(({ items }) => items.length > 0)
                   .length > 0;
-                
+
                 if (!hasFilteredItems) {
                   if (searchQuery) {
                     return (
@@ -1127,7 +1101,7 @@ export default function PatientWorkspacePage() {
                       </div>
                     );
                   }
-                  
+
                   if (documentFilter !== 'all') {
                     const filterLabels = {
                       consultations: 'consultations',
@@ -1154,7 +1128,7 @@ export default function PatientWorkspacePage() {
                       </div>
                     );
                   }
-                  
+
                   return (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <FileText className="h-16 w-16 text-muted-foreground mb-4" />
@@ -1184,7 +1158,7 @@ export default function PatientWorkspacePage() {
           <div className="px-4 py-3 border-b flex-shrink-0 bg-white dark:bg-[#1A1A1A]">
             <h3 className="font-semibold text-sm text-foreground">Tableau de bord</h3>
             <p className="text-[10px] text-muted-foreground">
-              {(snapshot && snapshot.latest_lab && snapshot.latest_lab.date_of_service) 
+              {(snapshot && snapshot.latest_lab && snapshot.latest_lab.date_of_service)
                 ? `Mis à jour le ${format(new Date(snapshot.latest_lab.date_of_service), 'd MMM yyyy')}`
                 : 'Pas encore de données'}
             </p>
@@ -1236,7 +1210,7 @@ export default function PatientWorkspacePage() {
                 {patientConsultations.length > 0 && (
                   <div className="mt-3 h-[60px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
+                      <BarChart
                         data={(() => {
                           // Group consultations by month
                           const months: Record<string, number> = {};
@@ -1263,12 +1237,12 @@ export default function PatientWorkspacePage() {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-xs font-semibold">Analyses récentes</h4>
                     <span className="text-[10px] text-muted-foreground">
-                      {snapshot.latest_lab.date_of_service 
+                      {snapshot.latest_lab.date_of_service
                         ? format(new Date(snapshot.latest_lab.date_of_service), 'd MMM yyyy')
                         : ''}
                     </span>
                   </div>
-                  
+
                   {/* Lab Results Overview with visual indicators */}
                   <div className="space-y-2">
                     {snapshot.latest_lab.tests.slice(0, 6).map((test: any, idx: number) => {
@@ -1276,14 +1250,14 @@ export default function PatientWorkspacePage() {
                       const isHigh = flagUpper === 'H' || flagUpper === 'HIGH' || flagUpper === 'HH';
                       const isLow = flagUpper === 'L' || flagUpper === 'LOW' || flagUpper === 'LL';
                       const isNormal = !isHigh && !isLow;
-                      
+
                       // Calculate visual bar width (normalized to 100%)
                       const value = parseFloat(test.value) || 0;
                       const normalLow = parseFloat(test.normal_low) || 0;
                       const normalHigh = parseFloat(test.normal_high) || value * 1.2;
                       const range = normalHigh - normalLow || 1;
                       const percentage = Math.min(Math.max(((value - normalLow) / range) * 100, 0), 100);
-                      
+
                       return (
                         <div key={idx} className={cn(
                           "border rounded-lg p-2.5",
@@ -1315,7 +1289,7 @@ export default function PatientWorkspacePage() {
                           </div>
                           {/* Visual progress bar */}
                           <div className="relative h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className={cn(
                                 "absolute h-full rounded-full transition-all",
                                 isHigh && "bg-[var(--medicai-green-dark)]",
@@ -1334,7 +1308,7 @@ export default function PatientWorkspacePage() {
                       );
                     })}
                   </div>
-                  
+
                   {/* Abnormal count summary */}
                   {abnormalLabs.length > 0 && (
                     <div className="mt-3 flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
@@ -1358,8 +1332,8 @@ export default function PatientWorkspacePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {currentMeds.slice(0, 6).map((med, idx) => (
-                      <div 
-                        key={idx} 
+                      <div
+                        key={idx}
                         className="border rounded-lg p-2.5 bg-card hover:bg-muted/50 transition-colors"
                       >
                         <div className="text-[11px] font-medium truncate">
@@ -1441,8 +1415,8 @@ export default function PatientWorkspacePage() {
                         });
                         return Object.entries(types).slice(0, 4).map(([type, count], idx) => (
                           <div key={type} className="flex items-center gap-2">
-                            <div 
-                              className="w-2.5 h-2.5 rounded-full" 
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
                               style={{ backgroundColor: colors[idx % colors.length] }}
                             />
                             <span className="text-[11px] flex-1">{labels[type] || type}</span>
@@ -1509,7 +1483,7 @@ export default function PatientWorkspacePage() {
                                 {!['lab', 'radiology', 'prescription'].includes(doc.document_type || '') && 'Document'}
                               </div>
                               <div className="text-[10px] text-muted-foreground">
-                                {doc.date_of_service 
+                                {doc.date_of_service
                                   ? format(new Date(doc.date_of_service), 'd MMM yyyy')
                                   : 'Date inconnue'}
                               </div>
@@ -1549,55 +1523,16 @@ export default function PatientWorkspacePage() {
                 {uploadError}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="file">Sélectionner des fichiers (multiples autorisés)</Label>
               <Input
                 id="file"
                 type="file"
                 onChange={handleFileChange}
-                accept=".pdf,.txt,.json,.xml,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,image/*"
-                multiple
-              />
-              {selectedFiles.length > 0 && (
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p className="font-medium">{selectedFiles.length} file(s) selected:</p>
-                  <ul className="list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto">
-                    {selectedFiles.map((file, idx) => (
-                      <li key={idx} className="text-xs">
-                        {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-muted-foreground italic mt-2">
-                     Astuce: Le traitement se fait en arrière-plan. Vous pouvez fermer cette boîte de dialogue et continuer à travailler.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setUploadDialogOpen(false);
-                  setSelectedFiles([]);
-                  setUploadError('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleUploadSubmit} 
-                disabled={selectedFiles.length === 0}
-              >
-                Upload {selectedFiles.length > 0 ? `(${selectedFiles.length})` : ''}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+                accept=".pdf,.txt,.json,.xml,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,image
 
-      {/* New Consultation Dialog */}
+}
       <Dialog open={consultationDialogOpen} onOpenChange={setConsultationDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1733,7 +1668,7 @@ export default function PatientWorkspacePage() {
               Mettre à jour les données du patient. Les champs obligatoires sont marqués *.
             </DialogDescription>
           </DialogHeader>
-          
+
           <ScrollArea className="max-h-[calc(85vh-180px)] px-6">
             <div className="space-y-6 py-6">
               {editError && (
@@ -1936,12 +1871,12 @@ export default function PatientWorkspacePage() {
             {activeConsultationIds.map((consultationId) => {
               const consultation = allConsultations?.find(c => c.id === consultationId);
               if (!consultation) return null;
-              
+
               return (
                 <div key={consultationId} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">
-                      {consultation.consultationTime 
+                      {consultation.consultationTime
                         ? format(new Date(consultation.consultationTime), 'PPp')
                         : 'Not scheduled'}
                     </p>
@@ -2036,7 +1971,7 @@ export default function PatientWorkspacePage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              Would you like to reassign this document to the current patient ({patientId})? 
+              Would you like to reassign this document to the current patient ({patientId})?
               This will remove it from the other patient.
             </p>
           </div>
@@ -2160,7 +2095,7 @@ export default function PatientWorkspacePage() {
                           </button>
                         </div>
                         {/* Image Container */}
-                        <div 
+                        <div
                           className="w-full h-full overflow-hidden relative flex items-center justify-center"
                           onWheel={(e) => {
                             e.preventDefault();
@@ -2204,9 +2139,9 @@ export default function PatientWorkspacePage() {
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 setIsDragging(true);
-                                setDragStart({ 
-                                  x: e.clientX - imagePosition.x, 
-                                  y: e.clientY - imagePosition.y 
+                                setDragStart({
+                                  x: e.clientX - imagePosition.x,
+                                  y: e.clientY - imagePosition.y
                                 });
                               }}
                               onMouseMove={(e) => {
@@ -2282,15 +2217,15 @@ export default function PatientWorkspacePage() {
                           className="h-7 text-xs bg-black hover:bg-neutral-800"
                           onClick={async () => {
                             if (!editedDocumentContent || !reviewingDocId) return;
-                            
+
                             setIsSavingExtractedData(true);
                             try {
                               await documentsApi.updateExtractedData(reviewingDocId, editedDocumentContent);
                               toast.success('Extracted data updated successfully');
-                              
+
                               // Refresh the document
                               queryClient.invalidateQueries({ queryKey: ['documents', reviewingDocId] });
-                              
+
                               setIsEditingExtractedData(false);
                               setEditedDocumentContent(null);
                             } catch (error) {
@@ -2504,7 +2439,7 @@ export default function PatientWorkspacePage() {
                     {reviewingDocument.document_type === 'prescription' && (
                       <div className="space-y-4">
                         {/* Medications */}
-                        {(isEditingExtractedData ? editedDocumentContent?.structured?.items : reviewingDocument.content?.structured?.items) && 
+                        {(isEditingExtractedData ? editedDocumentContent?.structured?.items : reviewingDocument.content?.structured?.items) &&
                          (isEditingExtractedData ? editedDocumentContent?.structured?.items?.length > 0 : reviewingDocument.content.structured.items.length > 0) && (
                           <div>
                             <h4 className="font-medium text-sm mb-3">Medications</h4>
@@ -2609,8 +2544,8 @@ export default function PatientWorkspacePage() {
                     )}
 
                     {/* Raw JSON for other types or debugging */}
-                    {reviewingDocument.document_type !== 'lab' && 
-                     reviewingDocument.document_type !== 'radiology' && 
+                    {reviewingDocument.document_type !== 'lab' &&
+                     reviewingDocument.document_type !== 'radiology' &&
                      reviewingDocument.document_type !== 'prescription' && (
                       <div>
                         <h4 className="font-medium text-sm mb-2">Raw Data</h4>
@@ -2709,7 +2644,7 @@ export default function PatientWorkspacePage() {
               Synthèse clinique de la consultation
             </SheetDescription>
           </SheetHeader>
-          
+
           <ScrollArea className="flex-1 min-h-0">
             {summaryLoading ? (
               <div className="flex items-center justify-center h-64">
@@ -2721,7 +2656,7 @@ export default function PatientWorkspacePage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CalendarIcon className="h-4 w-4" />
                   <span>
-                    {consultationSummary.created_at 
+                    {consultationSummary.created_at
                       ? new Date(consultationSummary.created_at).toLocaleDateString('fr-FR', {
                           weekday: 'long',
                           year: 'numeric',
@@ -2980,7 +2915,7 @@ export default function PatientWorkspacePage() {
                           </div>
                         )}
 
-                        {/* Quick notes */}
+                        {}
                         {parsed.quick_notes && parsed.quick_notes.length > 0 && (
                           <div className="border rounded-lg p-4 space-y-2">
                             <h3 className="font-medium text-sm flex items-center gap-2">
@@ -2998,14 +2933,13 @@ export default function PatientWorkspacePage() {
                     );
                   }
 
-                  // --- Legacy plain-text rendering (v1) ---
                   if (consultationSummary.summary) {
                     return (
                       <div className="space-y-4">
                         {consultationSummary.summary.split('\n\n').map((section: string, idx: number) => {
                           const lines = section.split('\n');
                           const firstLine = lines[0] || '';
-                          
+
                           if (firstLine.startsWith('Visit:')) {
                             return (
                               <div key={idx} className="bg-[var(--medicai-green-light)] border border-[var(--medicai-green)]/40 rounded-lg p-4">
@@ -3017,7 +2951,7 @@ export default function PatientWorkspacePage() {
                               </div>
                             );
                           }
-                          
+
                           if (firstLine.startsWith('HPI:')) {
                             return (
                               <div key={idx} className="border rounded-lg p-4">
@@ -3032,7 +2966,7 @@ export default function PatientWorkspacePage() {
                               </div>
                             );
                           }
-                          
+
                           if (firstLine.startsWith('Problem:')) {
                             return (
                               <div key={idx} className="border rounded-lg p-4">
@@ -3051,7 +2985,7 @@ export default function PatientWorkspacePage() {
                               </div>
                             );
                           }
-                          
+
                           return (
                             <div key={idx} className="bg-muted/50 rounded-lg p-4">
                               <p className="text-sm whitespace-pre-wrap">{section}</p>

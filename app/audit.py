@@ -1,8 +1,3 @@
-# audit.py
-"""
-Audit logging module for MedicAI.
-Provides HIPAA-compliant audit trail for sensitive operations.
-"""
 from typing import Any, Dict, Optional
 import json
 import logging
@@ -11,7 +6,6 @@ from medicai.storage.postgres import get_conn
 
 logger = logging.getLogger(__name__)
 
-# Audit event types (minimum events to log)
 PATIENT_VIEW = "PATIENT_VIEW"
 PATIENT_CREATE = "PATIENT_CREATE"
 PATIENT_UPDATE = "PATIENT_UPDATE"
@@ -25,28 +19,13 @@ LOGIN_FAILED = "LOGIN_FAILED"
 CONSULTATION_CREATE = "CONSULTATION_CREATE"
 CONSULTATION_VIEW = "CONSULTATION_VIEW"
 
-
 def audit_event(
     user_id: str,
     action: str,
     patient_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None
 ) -> None:
-    """
-    Log an audit event to the database.
-    
-    Args:
-        user_id: UUID of the user performing the action
-        action: Action type (e.g., PATIENT_VIEW, DOC_UPLOAD)
-        patient_id: Optional UUID of the patient involved
-        metadata: Optional additional metadata as dict
-        
-    Note:
-        Fails silently to not interrupt main operations.
-        Errors are logged for monitoring.
-    """
     try:
-        # Normalize "unknown" or empty user_id to None (UUID column)
         if user_id in (None, "unknown", ""):
             user_id = None
         if patient_id in (None, "unknown", ""):
@@ -68,9 +47,7 @@ def audit_event(
                 )
             conn.commit()
     except Exception as e:
-        # Don't crash the main operation, but log the failure
         logger.error(f"Failed to log audit event: {action} - {e}")
-
 
 def get_audit_log(
     user_id: Optional[str] = None,
@@ -78,18 +55,6 @@ def get_audit_log(
     action: Optional[str] = None,
     limit: int = 100
 ) -> list:
-    """
-    Retrieve audit events with optional filters.
-    
-    Args:
-        user_id: Filter by user
-        patient_id: Filter by patient
-        action: Filter by action type
-        limit: Maximum number of records to return
-        
-    Returns:
-        List of audit event dictionaries
-    """
     conditions = []
     params = []
     

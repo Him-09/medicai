@@ -1,8 +1,3 @@
-"""
-Team management API endpoints for MedicAI.
-Architecture: 1 doctor = 1 clinic (workspace), max 2 assistants per doctor.
-Roles: doctor (clinic owner, full access), assistant (limited CRUD, max 2 per clinic).
-"""
 import secrets
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
@@ -19,15 +14,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings/team", tags=["team"])
 
-# Valid roles — doctor is the clinic owner, only assistants can be invited
 VALID_ROLES = ("doctor", "assistant")
-INVITABLE_ROLES = ("assistant",)  # Only assistants can be added to a doctor's workspace
+INVITABLE_ROLES = ("assistant",)
 MAX_ASSISTANTS = 2
-
-
-# ============================================================================
-# SCHEMAS
-# ============================================================================
 
 class TeamMember(BaseModel):
     id: str
@@ -38,7 +27,6 @@ class TeamMember(BaseModel):
     totp_enabled: bool = False
     created_at: Optional[str] = None
 
-
 class TeamInvitation(BaseModel):
     id: str
     email: str
@@ -48,30 +36,21 @@ class TeamInvitation(BaseModel):
     created_at: Optional[str] = None
     expires_at: Optional[str] = None
 
-
 class TeamListResponse(BaseModel):
     members: List[TeamMember]
     invitations: List[TeamInvitation]
-
 
 class InviteRequest(BaseModel):
     email: EmailStr
     role: str = Field(default="assistant", description="Role: assistant (only assistants can be invited)")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    password: Optional[str] = None  # If not provided, a random one is generated
-
+    password: Optional[str] = None
 
 class UpdateRoleRequest(BaseModel):
     role: str = Field(..., description="New role: doctor or assistant")
 
-
-# ============================================================================
-# HELPERS
-# ============================================================================
-
 def _require_owner(user: Dict[str, Any]) -> None:
-    """Ensure the current user is the doctor (clinic owner). Raises 403 if not."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT role FROM users WHERE id = %s", (user["id"],))
@@ -79,28 +58,19 @@ def _require_owner(user: Dict[str, Any]) -> None:
             if not row or row[0] != "doctor":
                 raise HTTPException(403, "Only the doctor (clinic owner) can manage team members")
 
-
 def _get_user_role(user_id: str) -> Optional[str]:
-    """Get the role of a user."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT role FROM users WHERE id = %s", (user_id,))
             row = cur.fetchone()
             return row[0] if row else None
 
-
-# ============================================================================
-# ENDPOINTS
-# ============================================================================
-
 @router.get("", response_model=TeamListResponse)
 def list_team(user: Dict[str, Any] = Depends(get_current_user)):
-    """List all team members and pending invitations for the current clinic."""
     clinic_id = user["clinic_id"]
 
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Get team members
             cur.execute("""
                 SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.created_at,
                        COALESCE(s.totp_enabled, FALSE) as totp_enabled
@@ -126,7 +96,6 @@ def list_team(user: Dict[str, Any] = Depends(get_current_user)):
                     totp_enabled=row[6] or False,
                 ))
 
-            # Get pending invitations
             cur.execute("""
                 SELECT i.id, i.email, i.role, i.status, i.created_at, i.expires_at,
                        u.email as invited_by_email
@@ -149,17 +118,11 @@ def list_team(user: Dict[str, Any] = Depends(get_current_user)):
 
     return TeamListResponse(members=members, invitations=invitations)
 
-
 @router.post("/invite")
 def invite_member(
     payload: InviteRequest,
     user: Dict[str, Any] = Depends(get_current_user),
 ):
-    """
-    Add an assistant to the doctor's workspace.
-    Only the doctor (clinic owner) can invite. Max 2 assistants per workspace.
-    Creates the user account directly with a temporary password.
-    """
     _require_owner(user)
 
     if payload.role not in INVITABLE_ROLES:
@@ -170,7 +133,6 @@ def invite_member(
 
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Check assistant limit
             cur.execute(
                 "SELECT COUNT(*) FROM users WHERE clinic_id = %s AND role = 'assistant'",
                 (clinic_id,),
@@ -183,7 +145,6 @@ def invite_member(
                     "Remove an existing assistant before adding a new one."
                 )
 
-            # Check if user already exists in this clinic
             cur.execute(
                 "SELECT id FROM users WHERE email = %s AND clinic_id = %s",
                 (email, clinic_id),
@@ -191,7 +152,6 @@ def invite_member(
             if cur.fetchone():
                 raise HTTPException(409, "This email is already a member of your clinic")
 
-            # Check for existing pending invitation
             cur.execute(
                 "SELECT id FROM team_invitations WHERE email = %s AND clinic_id = %s AND status = 'pending'",
                 (email, clinic_id),
@@ -199,10 +159,8 @@ def invite_member(
             if cur.fetchone():
                 raise HTTPException(409, "An invitation is already pending for this email")
 
-            # Generate invitation token
             token = secrets.token_urlsafe(32)
 
-            # Create the invitation record
             cur.execute("""
                 INSERT INTO team_invitations (clinic_id, email, role, invited_by, token)
                 VALUES (%s, %s, %s, %s, %s)
@@ -210,8 +168,6 @@ def invite_member(
             """, (clinic_id, email, payload.role, user["id"], token))
             inv_row = cur.fetchone()
 
-            # Create the user account directly
-            # Use provided password or generate a random one
             temp_password = payload.password if payload.password else secrets.token_urlsafe(16)
             password_hash = hash_password(temp_password)
 
@@ -223,7 +179,6 @@ def invite_member(
                   payload.first_name, payload.last_name))
             new_user_id = str(cur.fetchone()[0])
 
-            # Mark invitation as accepted (since we create user directly)
             cur.execute("""
                 UPDATE team_invitations SET status = 'accepted', accepted_at = now()
                 WHERE id = %s
@@ -242,9 +197,8 @@ def invite_member(
         "user_id": new_user_id,
         "email": email,
         "role": payload.role,
-        "temp_password": temp_password,  # In production, send via email instead
+        "temp_password": temp_password,
     }
-
 
 @router.patch("/{member_id}/role")
 def update_member_role(
@@ -252,13 +206,11 @@ def update_member_role(
     payload: UpdateRoleRequest,
     user: Dict[str, Any] = Depends(get_current_user),
 ):
-    """Update a team member's role. Only the doctor (clinic owner) can do this."""
     _require_owner(user)
 
     if payload.role not in INVITABLE_ROLES:
         raise HTTPException(400, f"Invalid role. Must be one of: {', '.join(INVITABLE_ROLES)}")
 
-    # Cannot change your own role
     if member_id == user["id"]:
         raise HTTPException(400, "Cannot change your own role")
 
@@ -266,7 +218,6 @@ def update_member_role(
 
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Verify the member belongs to this clinic
             cur.execute(
                 "SELECT id, role FROM users WHERE id = %s AND clinic_id = %s",
                 (member_id, clinic_id),
@@ -291,16 +242,13 @@ def update_member_role(
 
     return {"message": "Role updated successfully", "role": payload.role}
 
-
 @router.delete("/{member_id}")
 def remove_member(
     member_id: str,
     user: Dict[str, Any] = Depends(get_current_user),
 ):
-    """Remove an assistant from the clinic. Only the doctor (clinic owner) can do this."""
     _require_owner(user)
 
-    # Cannot remove yourself
     if member_id == user["id"]:
         raise HTTPException(400, "Cannot remove yourself from the team")
 
@@ -308,7 +256,6 @@ def remove_member(
 
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Verify the member belongs to this clinic and is not the doctor
             cur.execute(
                 "SELECT id, email, role FROM users WHERE id = %s AND clinic_id = %s",
                 (member_id, clinic_id),
@@ -322,7 +269,6 @@ def remove_member(
 
             member_email = row[1]
 
-            # Delete the user (cascade will handle related records)
             cur.execute("DELETE FROM users WHERE id = %s", (member_id,))
             conn.commit()
 
@@ -333,13 +279,11 @@ def remove_member(
 
     return {"message": f"Team member {member_email} removed successfully"}
 
-
 @router.delete("/invitations/{invitation_id}")
 def cancel_invitation(
     invitation_id: str,
     user: Dict[str, Any] = Depends(get_current_user),
 ):
-    """Cancel a pending invitation. Only owners can do this."""
     _require_owner(user)
     clinic_id = user["clinic_id"]
 
@@ -358,9 +302,7 @@ def cancel_invitation(
 
     return {"message": f"Invitation to {row[0]} cancelled"}
 
-
 @router.get("/role")
 def get_my_role(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get the current user's role in the clinic."""
     role = _get_user_role(user["id"])
     return {"role": role or "doctor"}

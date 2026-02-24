@@ -1,6 +1,3 @@
-"""
-API endpoints for maintenance tasks.
-"""
 from fastapi import APIRouter, HTTPException, Depends
 from app.auth import require_owner
 from medicai.storage.maintenance import (
@@ -11,10 +8,8 @@ from medicai.storage.maintenance import (
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 
-
 @router.post("/complete-old-consultations")
 def complete_old_consultations(user=Depends(require_owner)):
-    """Manually trigger auto-completion of consultations older than 6 hours."""
     try:
         count = auto_complete_old_consultations()
         return {
@@ -24,15 +19,8 @@ def complete_old_consultations(user=Depends(require_owner)):
     except Exception as e:
         raise HTTPException(500, f"Failed to complete consultations: {str(e)}")
 
-
 @router.post("/archive-inactive-patients")
 def archive_inactive_patients(days: int = 180, user=Depends(require_owner)):
-    """
-    Manually trigger auto-archiving of patients inactive for specified days.
-    
-    Args:
-        days: Number of days of inactivity (default: 180)
-    """
     try:
         count = auto_archive_inactive_patients(days)
         return {
@@ -43,15 +31,8 @@ def archive_inactive_patients(days: int = 180, user=Depends(require_owner)):
     except Exception as e:
         raise HTTPException(500, f"Failed to archive patients: {str(e)}")
 
-
 @router.post("/run-all")
 def run_all_maintenance(inactive_days: int = 180, user=Depends(require_owner)):
-    """
-    Run all maintenance tasks at once.
-    
-    Args:
-        inactive_days: Number of days of inactivity before archiving patients
-    """
     try:
         results = run_all_maintenance_tasks(inactive_days)
         return {
@@ -61,10 +42,8 @@ def run_all_maintenance(inactive_days: int = 180, user=Depends(require_owner)):
     except Exception as e:
         raise HTTPException(500, f"Failed to run maintenance tasks: {str(e)}")
 
-
 @router.get("/status")
 def maintenance_status():
-    """Get information about maintenance tasks."""
     return {
         "available_tasks": [
             {

@@ -51,7 +51,7 @@ export default function ClinicSettingsPage() {
         settingsApi.getClinicSettings(),
         settingsApi.getClinicSchedule(),
       ]);
-      
+
       setClinicInfo({
         name: clinicData.name || '',
         address1: clinicData.address1 || '',
@@ -64,7 +64,7 @@ export default function ClinicSettingsPage() {
         dateFormat: clinicData.date_format || 'dd/MM/yyyy',
         currency: clinicData.currency || 'MAD',
       });
-      
+
       if (scheduleData.schedule && scheduleData.schedule.length > 0) {
         setSchedule(scheduleData.schedule);
       }
@@ -142,7 +142,7 @@ export default function ClinicSettingsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {}
       <div>
         <h1 className="text-2xl font-bold text-[#111]">Cabinet</h1>
         <p className="text-sm text-[#666] mt-0.5">
@@ -150,12 +150,12 @@ export default function ClinicSettingsPage() {
         </p>
       </div>
 
-      {/* Clinic Info */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide mb-3">
           Informations du cabinet
         </div>
-        
+
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-[#333] mb-1">
@@ -235,12 +235,12 @@ export default function ClinicSettingsPage() {
         </div>
       </div>
 
-      {/* Business Hours */}
+      {}
       <div className="bg-white rounded-xl border border-[#E5E5E5] p-6">
         <div className="uppercase text-[11px] font-semibold text-[#999] tracking-wide mb-4">
           Horaires d'ouverture
         </div>
-        
+
         <div className="space-y-0">
           {schedule.map((day, index) => (
             <div
@@ -258,7 +258,7 @@ export default function ClinicSettingsPage() {
                   {day.dayLabel}
                 </span>
               </div>
-              
+
               {day.enabled ? (
                 <div className="flex items-center gap-2">
                   <Select
@@ -306,7 +306,7 @@ export default function ClinicSettingsPage() {
         <div className="uppercase text-[11px] font-semibold text-[#999] tracking-wide mb-4">
           Paramètres régionaux
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-[#333] mb-1.5">
@@ -386,9 +386,9 @@ export default function ClinicSettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
-          disabled={isLoading} 
+        <Button
+          onClick={handleSave}
+          disabled={isLoading}
           className="h-10 px-6 bg-black hover:bg-neutral-800 text-white"
         >
           {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}

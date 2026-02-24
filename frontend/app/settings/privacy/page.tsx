@@ -120,7 +120,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {}
       <div>
         <h1 className="text-2xl font-bold text-[#111]">Données & Confidentialité</h1>
         <p className="text-sm text-[#666] mt-0.5">
@@ -128,19 +128,19 @@ export default function PrivacyPage() {
         </p>
       </div>
 
-      {/* Export Data */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide mb-2">
           Exporter vos données
         </div>
-        
+
         <p className="text-xs text-[#666] mb-3">
           Téléchargez une copie de toutes vos données : patients, consultations, documents PDF, données extraites et modèles.
         </p>
-        
+
         <div className="flex items-center gap-3">
-          <Button 
-            onClick={handleExport} 
+          <Button
+            onClick={handleExport}
             disabled={isExporting}
             className="h-9 text-sm bg-black hover:bg-neutral-800"
           >
@@ -151,12 +151,12 @@ export default function PrivacyPage() {
         </div>
       </div>
 
-      {/* Data Retention */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide mb-3">
           Conservation des données
         </div>
-        
+
         <RadioGroup value={retentionPolicy} onValueChange={setRetentionPolicy} className="space-y-0">
           {[
             { value: 'forever', label: 'Conservation illimitée', desc: 'Les données sont conservées jusqu\'\u00e0 suppression manuelle' },
@@ -179,9 +179,9 @@ export default function PrivacyPage() {
             </div>
           ))}
         </RadioGroup>
-        
+
         <div className="flex justify-end mt-4">
-          <Button 
+          <Button
             onClick={handleSaveRetention}
             disabled={isSavingRetention}
             variant="outline"
@@ -192,25 +192,25 @@ export default function PrivacyPage() {
         </div>
       </div>
 
-      {/* Consent Template */}
+      {}
       <div className="bg-white rounded-xl border border-[#E5E5E5] p-6">
         <div className="uppercase text-[11px] font-semibold text-[#999] tracking-wide mb-4">
           Modèle de consentement
         </div>
-        
+
         <p className="text-sm text-[#666] mb-3">
           Ce texte sera présenté aux patients lors de leur première visite. Utilisez [NOM] pour le nom du médecin.
         </p>
-        
+
         <Textarea
           value={consentText}
           onChange={(e) => setConsentText(e.target.value)}
           rows={4}
           className="border-[#E5E5E5] mb-4"
         />
-        
+
         <div className="flex justify-end">
-          <Button 
+          <Button
             onClick={handleSaveConsent}
             disabled={isSavingConsent}
             variant="outline"
@@ -221,12 +221,12 @@ export default function PrivacyPage() {
         </div>
       </div>
 
-      {/* Delete Account */}
+      {}
       <div className="bg-white rounded-xl border border-red-200 p-6">
         <div className="uppercase text-[11px] font-semibold text-red-500 tracking-wide mb-4">
           Zone de danger
         </div>
-        
+
         <div className="flex items-start gap-3 p-4 bg-red-50 rounded-lg mb-4">
           <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
@@ -236,7 +236,7 @@ export default function PrivacyPage() {
             </p>
           </div>
         </div>
-        
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" className="h-10">

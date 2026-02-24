@@ -14,7 +14,6 @@ class PrepOut(BaseModel):
     patient_id: str
     prep_text: str
 
-# Changes since last visit schemas
 class NewDocument(BaseModel):
     doc_id: str
     document_type: str
@@ -27,7 +26,7 @@ class AbnormalLab(BaseModel):
     unit: str
     flag: str
     date_of_service: str
-    trend: str  # "new_abnormal" or "worsening"
+    trend: str
     previous_value: Optional[str] = None
 
 class NewImaging(BaseModel):

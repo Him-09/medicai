@@ -38,7 +38,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-// Day mapping for schedule lookup
 const dayMapping: Record<number, string> = {
   0: 'sunday',
   1: 'monday',
@@ -58,7 +57,7 @@ export default function SchedulePage() {
   const [selectedTime, setSelectedTime] = useState<string>('09:00');
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleTime, setRescheduleTime] = useState<string>('09:00');
-  
+
   const { data: consultations = [], isLoading: consultationsLoading } = useConsultations();
   const { data: patients = [], isLoading: patientsLoading } = usePatients();
   const { data: clinicSchedule = [], isLoading: scheduleLoading } = useClinicSchedule();
@@ -68,23 +67,19 @@ export default function SchedulePage() {
   const { mutate: cancelConsultation } = useCancelConsultation();
   const router = useRouter();
 
-  // Get consultation duration from settings (default to 30 minutes)
   const consultationDuration = clinicSettings?.default_consultation_duration || 30;
 
-  // Get schedule for the selected day
   const selectedDaySchedule = useMemo(() => {
     const dayOfWeek = getDay(selectedDate);
     const dayKey = dayMapping[dayOfWeek];
     return clinicSchedule.find(s => s.day === dayKey);
   }, [selectedDate, clinicSchedule]);
 
-  // Check if clinic is open on selected day
   const isClinicOpen = selectedDaySchedule?.enabled ?? true;
 
-  // Generate time slots based on clinic schedule for the selected day
   const timeSlots = useMemo(() => {
     if (!selectedDaySchedule || !selectedDaySchedule.enabled) {
-      // Default slots if no schedule configured (30-min intervals from 8am-8pm)
+
       const slots: string[] = [];
       const duration = consultationDuration;
       for (let minutes = 8 * 60; minutes < 20 * 60; minutes += duration) {
@@ -98,8 +93,7 @@ export default function SchedulePage() {
     const [startHour, startMin = 0] = selectedDaySchedule.start.split(':').map(Number);
     const [endHour, endMin = 0] = selectedDaySchedule.end.split(':').map(Number);
     const slots: string[] = [];
-    
-    // Convert to minutes for easier calculation
+
     const startTotalMinutes = startHour * 60 + startMin;
     const endTotalMinutes = endHour * 60 + endMin;
     const duration = consultationDuration;
@@ -113,13 +107,12 @@ export default function SchedulePage() {
     return slots;
   }, [selectedDaySchedule, consultationDuration]);
 
-  // Parse consultation dates and filter by selected date
   const consultationsWithDates = consultations
-    .filter(c => c.status === 'active') // Only show active consultations
+    .filter(c => c.status === 'active')
     .map(c => {
       const dateStr = c.consultationTime || c.createdAt;
       const date = new Date(dateStr);
-      
+
       return {
         ...c,
         date,
@@ -130,15 +123,12 @@ export default function SchedulePage() {
     .filter(c => isSameDay(c.date, selectedDate))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Get dates with consultations for calendar highlighting
   const datesWithConsultations = consultationsWithDates.map(c => startOfDay(c.date));
-  
-  // Check if a date has consultations for calendar modifier
+
   const hasConsultation = (date: Date) => {
     return datesWithConsultations.some(d => isSameDay(d, date));
   };
 
-  // Check if clinic is closed on a specific date
   const isClinicClosed = (date: Date) => {
     const dayOfWeek = getDay(date);
     const dayKey = dayMapping[dayOfWeek];
@@ -150,11 +140,11 @@ export default function SchedulePage() {
     const [slotHour, slotMin] = timeSlot.split(':').map(Number);
     const slotStartMinutes = slotHour * 60 + slotMin;
     const slotEndMinutes = slotStartMinutes + consultationDuration;
-    
+
     return selectedDateConsultations.filter(c => {
-      // Get the time from the consultation date in minutes
+
       const consultationMinutes = c.date.getHours() * 60 + c.date.getMinutes();
-      // Match consultations that fall within this time slot
+
       return consultationMinutes >= slotStartMinutes && consultationMinutes < slotEndMinutes;
     });
   };
@@ -176,8 +166,7 @@ export default function SchedulePage() {
     const now = new Date();
     const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
     const slotTotalMinutes = slotHour * 60 + slotMin;
-    
-    // Slot is past if the current time is past the slot start time
+
     return currentTotalMinutes >= slotTotalMinutes;
   };
 
@@ -191,17 +180,17 @@ export default function SchedulePage() {
 
   const handleUpdateReschedule = () => {
     if (!reschedulingConsultation) return;
-    
+
     const [hours, minutes] = rescheduleTime.split(':').map(Number);
     const dateTime = new Date(rescheduleDate);
     dateTime.setHours(hours, minutes, 0, 0);
-    
+
     updateConsultation(
-      { 
-        id: reschedulingConsultation.id, 
-        data: { 
-          consultation_time: dateTime 
-        } 
+      {
+        id: reschedulingConsultation.id,
+        data: {
+          consultation_time: dateTime
+        }
       },
       {
         onSuccess: () => {
@@ -237,7 +226,7 @@ export default function SchedulePage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Calendar Section */}
+      {}
       <div className="w-80 bg-white border-r p-6 flex flex-col">
         <div className="mb-0">
           <h1 className="text-2xl font-semibold text-gray-900">Planning</h1>
@@ -266,7 +255,7 @@ export default function SchedulePage() {
           </CardContent>
         </Card>
 
-        {/* Clinic Hours Info */}
+        {}
         {selectedDaySchedule && (
           <div className={cn(
             "mt-0 p-2 rounded-lg text-sm",
@@ -294,7 +283,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Day View Section */}
+      {}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
           <div className="mb-4">
@@ -302,7 +291,7 @@ export default function SchedulePage() {
               {format(selectedDate, 'EEEE, MMMM d, yyyy')}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {isClinicOpen 
+              {isClinicOpen
                 ? `${selectedDateConsultations.length} consultation${selectedDateConsultations.length !== 1 ? 's' : ''} prévue${selectedDateConsultations.length !== 1 ? 's' : ''}`
                 : 'Cabinet fermé ce jour'
               }
@@ -328,7 +317,7 @@ export default function SchedulePage() {
                 const isPastSlot = isTimeSlotPast(timeSlot);
 
                 return (
-                  <Card 
+                  <Card
                     key={timeSlot}
                     className={cn(
                       "h-36 transition-all duration-200 relative",
@@ -344,7 +333,7 @@ export default function SchedulePage() {
                     }}
                   >
                     <CardContent className="px-3 py-0 h-full flex flex-col justify-between">
-                      {/* Time header with actions */}
+                      {}
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-gray-700">
                           {timeSlot}
@@ -373,7 +362,7 @@ export default function SchedulePage() {
                               {consultationsAtTime[0].status === 'active' && (
                                 <>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     onClick={() => handleCancelConsultation(consultationsAtTime[0].id)}
                                     className="text-destructive"
                                   >
@@ -387,7 +376,7 @@ export default function SchedulePage() {
                         )}
                       </div>
 
-                      {/* Content */}
+                      {}
                       <div className="flex-1 flex items-center justify-center">
                         {hasConsultations ? (
                           <div className="flex flex-col items-center justify-center gap-2">
@@ -415,7 +404,7 @@ export default function SchedulePage() {
                         )}
                       </div>
 
-                      {/* Footer */}
+                      {}
                       <div className={cn(
                         "text-[10px] font-medium text-center uppercase tracking-wide",
                         hasConsultations ? "text-[var(--medicai-green-dark)]" : "text-gray-500"
@@ -431,7 +420,7 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Schedule Dialog */}
+      {}
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -471,32 +460,30 @@ export default function SchedulePage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={() => {
                 if (selectedPatientId) {
                   // Check if patient already has an active consultation
                   const hasActiveConsultation = consultations.some(
                     (c) => c.patientId === `#${selectedPatientId}` && c.status === 'active'
                   );
-                  
+
                   if (hasActiveConsultation) {
                     toast.error('Ce patient a déjà une consultation active. Veuillez la terminer avant d\'en créer une nouvelle.');
                     return;
                   }
-                  
-                  // Check if slot is already taken
+
                   const [hours] = selectedTime.split(':').map(Number);
                   const slotConsultations = getConsultationsForTimeSlot(selectedTime);
                   if (slotConsultations.length > 0) {
                     toast.error(`Ce créneau (${selectedTime}) est déjà occupé par une autre consultation.`);
                     return;
                   }
-                  
-                  // Combine selected date with selected time
+
                   const consultationDateTime = new Date(selectedDate);
                   consultationDateTime.setHours(hours, 0, 0, 0);
-                  
+
                   createConsultation(
                     { patientId: selectedPatientId, consultationTime: consultationDateTime },
                     {
@@ -521,7 +508,7 @@ export default function SchedulePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reschedule Dialog */}
+      {}
       <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -566,8 +553,8 @@ export default function SchedulePage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={handleUpdateReschedule}
             >
               Reprogrammer

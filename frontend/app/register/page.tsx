@@ -11,7 +11,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [specialities, setSpecialities] = useState<string[]>([]);
 
-  // Form fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -26,7 +25,6 @@ export default function RegisterPage() {
     authService.fetchSpecialities().then(setSpecialities);
   }, []);
 
-  // Auto-generate clinic name from doctor name
   useEffect(() => {
     if (firstName || lastName) {
       const name = [firstName, lastName].filter(Boolean).join(' ');
@@ -67,11 +65,7 @@ export default function RegisterPage() {
         license_number: licenseNumber || undefined,
       });
 
-      if (response.mfa_setup_required) {
-        router.push('/settings?tab=security&setup=mfa');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
     } catch (err: unknown) {
       const error = err as { message?: string };
       setError(error.message || 'Erreur lors de la création du compte');
@@ -83,7 +77,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white py-12">
       <div className="w-full max-w-md px-6">
-        {/* Logo */}
+        {}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-[var(--medicai-green-light)] rounded-full mb-4">
             <Stethoscope className="h-7 w-7 text-[var(--medicai-green-darker)]" />
@@ -104,7 +98,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Name row */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-black mb-1.5">
@@ -136,7 +130,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Email */}
+          {}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-black mb-1.5">
               Email
@@ -153,7 +147,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Specialty */}
+          {}
           <div>
             <label htmlFor="specialty" className="block text-sm font-medium text-black mb-1.5">
               Spécialité
@@ -175,7 +169,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Clinic name */}
+          {}
           <div>
             <label htmlFor="clinicName" className="block text-sm font-medium text-black mb-1.5">
               Nom du cabinet
@@ -191,7 +185,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Phone + License row */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-black mb-1.5">
@@ -221,7 +215,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Passwords */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-black mb-1.5">
@@ -275,7 +269,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* Link to login */}
+        {}
         <div className="text-center mt-6">
           <button
             onClick={() => router.push('/login')}
@@ -286,7 +280,7 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        {/* Footer */}
+        {}
         <p className="text-center text-xs text-neutral-400 mt-6">
           © 2026 MedicAI
         </p>

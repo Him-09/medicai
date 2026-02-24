@@ -1,14 +1,6 @@
-"""
-Automatic maintenance tasks for consultations and patients.
-"""
 from medicai.storage.postgres import get_conn
 
-
 def auto_complete_old_consultations() -> int:
-    """
-    Auto-complete consultations that are active but older than 6 hours.
-    Returns the number of consultations updated.
-    """
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -24,15 +16,7 @@ def auto_complete_old_consultations() -> int:
     
     return affected
 
-
 def auto_archive_inactive_patients(days: int = 180) -> int:
-    """
-    Archive patients where last consultation is older than specified days.
-    Returns the number of patients archived.
-    
-    Args:
-        days: Number of days of inactivity before archiving (default: 180)
-    """
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -56,12 +40,7 @@ def auto_archive_inactive_patients(days: int = 180) -> int:
     
     return affected
 
-
 def unarchive_patient(patient_id: str) -> bool:
-    """
-    Unarchive a patient (set status to active).
-    Returns True if patient was unarchived, False otherwise.
-    """
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -77,17 +56,7 @@ def unarchive_patient(patient_id: str) -> bool:
     
     return affected > 0
 
-
 def run_all_maintenance_tasks(inactive_days: int = 180) -> dict:
-    """
-    Run all maintenance tasks and return a summary.
-    
-    Args:
-        inactive_days: Number of days of inactivity before archiving patients
-    
-    Returns:
-        dict with counts of affected records
-    """
     consultations_completed = auto_complete_old_consultations()
     patients_archived = auto_archive_inactive_patients(inactive_days)
     

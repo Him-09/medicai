@@ -1,1 +1,0 @@
-"""Medicai Application Package"""

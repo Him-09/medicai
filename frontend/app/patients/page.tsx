@@ -54,7 +54,7 @@ export default function PatientsPage() {
   const [consultationDate, setConsultationDate] = useState<Date>(new Date());
   const [consultationTime, setConsultationTime] = useState<string>('09:00');
   const [error, setError] = useState<string>('');
-  
+
   const [formData, setFormData] = useState({
     name: '',
     dob: '',
@@ -67,7 +67,6 @@ export default function PatientsPage() {
     active_problems: '',
   });
 
-  // Calculate age from DOB
   const calculateAge = (dob: string) => {
     if (!dob) return null;
     const birthDate = new Date(dob);
@@ -78,9 +77,8 @@ export default function PatientsPage() {
     return age;
   };
 
-  // Calculate next action for patient
   const getNextAction = (patient: any) => {
-    // Check for pending documents
+
     if (patient.pendingDocumentsCount && patient.pendingDocumentsCount > 0) {
       return {
         type: 'pending',
@@ -88,8 +86,7 @@ export default function PatientsPage() {
         urgent: true,
       };
     }
-    
-    // Check for last consultation date and suggest follow-up
+
     if (patient.lastConsultation && patient.lastConsultation !== '-') {
       try {
         const lastVisit = parseISO(patient.lastConsultation);
@@ -102,19 +99,18 @@ export default function PatientsPage() {
           };
         }
       } catch {
-        // If parsing fails, try another format
+
       }
     }
-    
+
     return null;
   };
 
-  // Format last consultation time
   const formatLastConsultation = (dateStr: string | undefined) => {
     if (!dateStr || dateStr === '-') return 'Jamais';
     try {
       const date = parseISO(dateStr);
-      // Check if date is valid
+
       if (isNaN(date.getTime())) return 'Jamais';
       const daysAgo = differenceInDays(new Date(), date);
       if (isNaN(daysAgo)) return 'Jamais';
@@ -129,13 +125,12 @@ export default function PatientsPage() {
     }
   };
 
-  // Parse smart search filters
   const parseSearchQuery = (query: string) => {
     const filters: { text: string; hasPending?: boolean; isArchived?: boolean; lastVisitMonths?: number } = { text: '' };
-    
+
     const parts = query.split(/\s+/);
     const textParts: string[] = [];
-    
+
     parts.forEach(part => {
       if (part.toLowerCase() === 'has:pending') {
         filters.hasPending = true;
@@ -148,7 +143,7 @@ export default function PatientsPage() {
         textParts.push(part);
       }
     });
-    
+
     filters.text = textParts.join(' ');
     return filters;
   };
@@ -158,17 +153,16 @@ export default function PatientsPage() {
       setError('Le nom et la date de naissance sont requis');
       return;
     }
-    
+
     setError('');
-    
-    // Process allergies and active_problems into arrays
+
     const processedData = {
       ...formData,
       sex: formData.sex || undefined,
       allergies: formData.allergies ? formData.allergies.split(',').map(a => a.trim()).filter(Boolean) : [],
       active_problems: formData.active_problems ? formData.active_problems.split(',').map(p => p.trim()).filter(Boolean) : [],
     };
-    
+
     createPatient(processedData, {
       onSuccess: (data) => {
         setDialogOpen(false);
@@ -191,21 +185,19 @@ export default function PatientsPage() {
     });
   };
 
-  // Filter and sort patients
   const filteredPatients = useMemo(() => {
     if (!patients) return [];
-    
+
     const searchFilters = parseSearchQuery(searchQuery);
-    
+
     let filtered = patients.filter((patient) => {
-      // Text search
+
       if (searchFilters.text) {
         const matchesSearch = patient.name.toLowerCase().includes(searchFilters.text.toLowerCase()) ||
                               patient.patientId?.toLowerCase().includes(searchFilters.text.toLowerCase());
         if (!matchesSearch) return false;
       }
-      
-      // Smart filters
+
       if (searchFilters.hasPending && (!patient.pendingDocumentsCount || patient.pendingDocumentsCount === 0)) {
         return false;
       }
@@ -218,25 +210,22 @@ export default function PatientsPage() {
           const monthsAgo = differenceInMonths(new Date(), lastVisit);
           if (monthsAgo < searchFilters.lastVisitMonths) return false;
         } catch {
-          // If parsing fails, include the patient
+
         }
       }
-      
-      // Status filter (from tabs)
+
       const matchesFilter = filter === 'all' || patient.status === filter;
-      
+
       return matchesFilter;
     });
-    
-    // Sort by: Recently seen (most recent first), then by pending actions
+
     return filtered.sort((a, b) => {
-      // Priority: Patients with pending actions first
+
       const actionA = getNextAction(a);
       const actionB = getNextAction(b);
       if (actionA?.urgent && !actionB?.urgent) return -1;
       if (actionB?.urgent && !actionA?.urgent) return 1;
-      
-      // Then by last consultation (most recent first)
+
       if (a.lastConsultation && b.lastConsultation && a.lastConsultation !== '-' && b.lastConsultation !== '-') {
         try {
           const dateA = parseISO(a.lastConsultation);
@@ -248,7 +237,7 @@ export default function PatientsPage() {
       }
       if (a.lastConsultation && a.lastConsultation !== '-') return -1;
       if (b.lastConsultation && b.lastConsultation !== '-') return 1;
-      
+
       return 0;
     });
   }, [patients, searchQuery, filter]);
@@ -259,18 +248,16 @@ export default function PatientsPage() {
 
   const handleNewConsultation = (e: React.MouseEvent, patient: any) => {
     e.stopPropagation();
-    
-    // Check if patient already has an active consultation
+
     const hasActiveConsultation = consultations?.some(
       (c) => c.patientId === `#${patient.id}` && c.status === 'active'
     );
-    
+
     if (hasActiveConsultation) {
       toast.error('Ce patient a déjà une consultation active. Veuillez la terminer avant d\'en créer une nouvelle.');
       return;
     }
-    
-    // Open dialog with patient pre-selected
+
     setSelectedPatient(patient);
     setConsultationName('');
     setConsultationDate(new Date());
@@ -281,11 +268,11 @@ export default function PatientsPage() {
 
   const handleCreateConsultation = () => {
     if (!selectedPatient) return;
-    
+
     const [hours, minutes] = consultationTime.split(':').map(Number);
     const dateTime = new Date(consultationDate);
     dateTime.setHours(hours, minutes, 0, 0);
-    
+
     setError('');
     createConsultation(
       { patientId: selectedPatient.id, name: consultationName || undefined, consultationTime: dateTime },
@@ -349,7 +336,7 @@ export default function PatientsPage() {
                 Ajoutez un nouveau patient. Les champs marqués * sont obligatoires.
               </DialogDescription>
             </DialogHeader>
-            
+
             <ScrollArea className="max-h-[calc(85vh-180px)] px-6">
               <div className="space-y-4 py-0">
                 {error && (
@@ -357,8 +344,8 @@ export default function PatientsPage() {
                     {error}
                   </div>
                 )}
-                
-                {/* Basic Information Section */}
+
+                {}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground">Informations de base</h3>
                   <div className="grid grid-cols-3 gap-4">
@@ -397,7 +384,7 @@ export default function PatientsPage() {
 
                 <Separator />
 
-                {/* Contact Information Section */}
+                {}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground">Contact</h3>
                   <div className="grid grid-cols-2 gap-4">
@@ -435,7 +422,7 @@ export default function PatientsPage() {
 
                 <Separator />
 
-                {/* Clinical Information Section */}
+                {}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground">Informations cliniques</h3>
                   <div className="space-y-1 mx-1">
@@ -490,7 +477,7 @@ export default function PatientsPage() {
         </Dialog>
       </div>
 
-      {/* Search bar with smart filter hints */}
+      {}
       <div className="space-y-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -501,32 +488,10 @@ export default function PatientsPage() {
             className="pl-10"
           />
         </div>
-        {/* Smart filter badges */}
-         {/*<div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">Filtres rapides:</span>
-          <Badge
-            variant={searchQuery === 'has:pending' ? 'default' : 'outline'}
-            className="cursor-pointer text-xs"
-            onClick={() => setSearchQuery(searchQuery === 'has:pending' ? '' : 'has:pending')}
-          >
-             Docs en attente
-          </Badge>
-          <Badge
-            variant={searchQuery === 'last:>6m' ? 'default' : 'outline'}
-            className="cursor-pointer text-xs"
-            onClick={() => setSearchQuery(searchQuery === 'last:>6m' ? '' : 'last:>6m')}
-          >
-             Pas vu depuis 6 mois
-          </Badge>
-          <Badge
-            variant={searchQuery === 'status:archived' ? 'default' : 'outline'}
-            className="cursor-pointer text-xs"
-            onClick={() => setSearchQuery(searchQuery === 'status:archived' ? '' : 'status:archived')}
-          >
-             Archivés
-          </Badge>
-        </div>
-        */}
+        {}
+         {
+
+}
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full">
@@ -537,7 +502,7 @@ export default function PatientsPage() {
         </TabsList>
       </Tabs>
 
-      {/* Patients Cards Grid */}
+      {}
       {filteredPatients.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground border rounded-md">
           Aucun patient trouvé
@@ -550,16 +515,16 @@ export default function PatientsPage() {
               .map((n: string) => n[0])
               .join('')
               .toUpperCase();
-            
+
             const age = calculateAge(patient.dob);
             const nextAction = getNextAction(patient);
-            
+
             return (
               <div
                 key={patient.id}
                 className="border border-[#EAEAEA] rounded-xl p-4 bg-white group"
               >
-                {/* Header: Avatar + Name + Status */}
+                {}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar className="h-10 w-10 flex-shrink-0">
@@ -572,7 +537,7 @@ export default function PatientsPage() {
                       </div>
                     </div>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={patient.status === 'active' ? 'default' : 'secondary'}
                     className={cn(
                       "text-xs flex-shrink-0",
@@ -583,17 +548,12 @@ export default function PatientsPage() {
                   </Badge>
                 </div>
 
-                {/* Active problems */}
-                {/*
-                {patient.active_problems && patient.active_problems.length > 0 && (
-                  <div className="text-xs text-muted-foreground mb-3 truncate">
-                    {patient.active_problems.slice(0, 2).join(', ')}
-                    {patient.active_problems.length > 2 && ' ...'}
-                  </div>
-                )}
-                  */}
+                {}
+                {
 
-                {/* Info row */}
+}
+
+                {}
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
@@ -605,7 +565,7 @@ export default function PatientsPage() {
                   </div>
                 </div>
 
-                {/* Next action alert - always occupies space */}
+                {}
                 <div className={cn(
                   "text-xs px-2 py-1.5 rounded-md mb-3 h-[28px]",
                   nextAction ? "flex items-center gap-1.5" : "invisible",
@@ -623,7 +583,7 @@ export default function PatientsPage() {
                   )}
                 </div>
 
-                {/* Actions */}
+                {}
                 <div className="flex items-center gap-2 pt-2 border-t" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="outline"
@@ -664,7 +624,7 @@ export default function PatientsPage() {
 
       </div>
 
-      {/* Footer - Always at bottom */}
+      {}
       <div className="mt-auto pt-6">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{filteredPatients.length} patient{filteredPatients.length > 1 ? 's' : ''}</span>
@@ -672,7 +632,7 @@ export default function PatientsPage() {
         </div>
       </div>
 
-      {/* New Consultation Dialog */}
+      {}
       <Dialog open={consultationDialogOpen} onOpenChange={setConsultationDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -687,8 +647,8 @@ export default function PatientsPage() {
                 {error}
               </div>
             )}
-            
-            {/* Patient info (read-only) */}
+
+            {}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Motif (Optionnel)</label>
@@ -714,7 +674,7 @@ export default function PatientsPage() {
                 ))}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Date</label>
               <div className="flex gap-2 mb-2">
@@ -759,7 +719,7 @@ export default function PatientsPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Heure</label>
               <Select value={consultationTime} onValueChange={setConsultationTime}>
@@ -778,9 +738,9 @@ export default function PatientsPage() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <Button 
-              onClick={handleCreateConsultation} 
+
+            <Button
+              onClick={handleCreateConsultation}
               disabled={!selectedPatient || isCreatingConsultation}
               className="w-full"
             >

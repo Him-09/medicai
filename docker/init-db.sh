@@ -1,8 +1,4 @@
 #!/bin/bash
-# ============================================================
-#  MedicAI — PostgreSQL initialization script
-#  Runs automatically on first container start (empty data dir)
-# ============================================================
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL

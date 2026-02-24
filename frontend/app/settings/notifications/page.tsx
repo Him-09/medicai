@@ -22,7 +22,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadSettings();
-    // Check browser notification permission
+
     if ('Notification' in window) {
       setBrowserPermission(Notification.permission);
     }
@@ -64,7 +64,7 @@ export default function NotificationsPage() {
     }
 
     if (!settings.browser_notifications) {
-      // User wants to enable - request permission
+
       if (browserPermission === 'denied') {
         toast.error('Les notifications ont été bloquées. Activez-les dans les paramètres de votre navigateur.');
         return;
@@ -73,10 +73,10 @@ export default function NotificationsPage() {
       if (browserPermission === 'default') {
         const permission = await Notification.requestPermission();
         setBrowserPermission(permission);
-        
+
         if (permission === 'granted') {
           toggleSetting('browser_notifications');
-          // Send test notification
+
           new Notification('MedicAI', {
             body: 'Les notifications sont maintenant activées !',
             icon: '/favicon.ico',
@@ -90,7 +90,7 @@ export default function NotificationsPage() {
         toast.success('Notifications activées');
       }
     } else {
-      // User wants to disable
+
       toggleSetting('browser_notifications');
       toast.info('Notifications désactivées');
     }
@@ -128,7 +128,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {}
       <div>
         <h1 className="text-2xl font-bold text-[#111]">Notifications</h1>
         <p className="text-sm text-[#666] mt-0.5">
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
         </p>
       </div>
 
-      {/* Email Notifications */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="flex items-center justify-between py-2 border-b border-[#E5E5E5]">
           <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ export default function NotificationsPage() {
               </p>
             </div>
           </div>
-          <Switch 
+          <Switch
             checked={settings.email_notifications}
             onCheckedChange={() => toggleSetting('email_notifications')}
           />
@@ -164,7 +164,7 @@ export default function NotificationsPage() {
             <div>
               <h3 className="text-sm font-medium text-[#111]">Notifications navigateur</h3>
               <p className="text-xs text-[#666] mt-0.5">
-                {browserPermission === 'granted' 
+                {browserPermission === 'granted'
                   ? 'Activez pour recevoir des alertes sur votre bureau.'
                   : browserPermission === 'denied'
                   ? 'Bloqué - Modifiez dans les paramètres du navigateur'
@@ -174,16 +174,16 @@ export default function NotificationsPage() {
           </div>
           <div className="flex items-center gap-2">
             {settings.browser_notifications && browserPermission === 'granted' && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-8 text-xs text-[#666]"
                 onClick={sendTestNotification}
               >
                 Tester
               </Button>
             )}
-            <Switch 
+            <Switch
               checked={settings.browser_notifications}
               onCheckedChange={handleBrowserNotificationToggle}
               disabled={browserPermission === 'denied'}
@@ -206,35 +206,35 @@ export default function NotificationsPage() {
         <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide mb-2">
           M'avertir quand...
         </div>
-        
+
         <div className="space-y-0">
           <div className="flex items-center justify-between py-2.5 border-b border-[#E5E5E5]">
             <span className="text-sm text-[#333]">Un nouveau document est reçu</span>
-            <Switch 
+            <Switch
               checked={settings.new_document}
               onCheckedChange={() => toggleSetting('new_document')}
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-2.5 border-b border-[#E5E5E5]">
             <span className="text-sm text-[#333]">Un document nécessite une révision</span>
-            <Switch 
+            <Switch
               checked={settings.document_review}
               onCheckedChange={() => toggleSetting('document_review')}
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-2.5 border-b border-[#E5E5E5]">
             <span className="text-sm text-[#333]">Un résultat anormal est détecté</span>
-            <Switch 
+            <Switch
               checked={settings.urgent_alerts}
               onCheckedChange={() => toggleSetting('urgent_alerts')}
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-2.5">
             <span className="text-sm text-[#333]">Rappel de consultation à venir</span>
-            <Switch 
+            <Switch
               checked={settings.consultation_reminder}
               onCheckedChange={() => toggleSetting('consultation_reminder')}
             />
@@ -242,11 +242,11 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* Save Button */}
+      {}
       <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
-          disabled={isLoading} 
+        <Button
+          onClick={handleSave}
+          disabled={isLoading}
           className="h-9 px-5 bg-black hover:bg-neutral-800 text-white text-sm"
         >
           {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}

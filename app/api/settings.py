@@ -1,8 +1,3 @@
-# settings.py
-"""
-Settings API endpoints for MedicAI.
-Provides CRUD operations for user settings, clinic settings, and system configuration.
-"""
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
@@ -16,26 +11,11 @@ import io
 from app.auth import get_current_user, hash_password, verify_password, require_doctor_or_owner
 from app.audit import audit_event
 from medicai.storage.postgres import get_conn
-from app.utils.ai_toggle import get_ai_status
-
-# TOTP 2FA imports
-try:
-    import pyotp
-    import qrcode
-    TOTP_AVAILABLE = True
-except ImportError:
-    TOTP_AVAILABLE = False
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-# Create uploads directory for profile images
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "profiles")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
-# ============================================================================
-# SCHEMAS
-# ============================================================================
 
 class UserProfileUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -46,11 +26,9 @@ class UserProfileUpdate(BaseModel):
     output_language: Optional[str] = None
     ai_compactness: Optional[str] = None
 
-
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
-
 
 class ClinicSettings(BaseModel):
     name: Optional[str] = None
@@ -64,25 +42,17 @@ class ClinicSettings(BaseModel):
     date_format: Optional[str] = None
     currency: Optional[str] = None
 
-
 class DaySchedule(BaseModel):
     day: str
     enabled: bool
     start: str
     end: str
 
-
 class ScheduleUpdate(BaseModel):
     schedule: List[DaySchedule]
 
-
-# ============================================================================
-# USER PROFILE ENDPOINTS
-# ============================================================================
-
 @router.get("/profile")
 def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get current user's profile."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -108,13 +78,11 @@ def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
                 "created_at": row[9].isoformat() if row[9] else None,
             }
 
-
 @router.patch("/profile")
 def update_profile(
     data: UserProfileUpdate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update current user's profile."""
     update_fields = []
     values = []
     
@@ -156,27 +124,22 @@ def update_profile(
         }
     }
 
-
 @router.post("/change-password")
 def change_password(
     data: PasswordChange,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Change user's password."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Verify current password
             cur.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
             row = cur.fetchone()
             
             if not row or not verify_password(data.current_password, row[0]):
                 raise HTTPException(400, "Current password is incorrect")
             
-            # Validate new password
             if len(data.new_password) < 8:
                 raise HTTPException(400, "Password must be at least 8 characters")
             
-            # Update password
             new_hash = hash_password(data.new_password)
             cur.execute("""
                 UPDATE users SET password_hash = %s, updated_at = now()
@@ -188,14 +151,8 @@ def change_password(
     
     return {"message": "Password changed successfully"}
 
-
-# ============================================================================
-# CLINIC SETTINGS ENDPOINTS
-# ============================================================================
-
 @router.get("/clinic")
 def get_clinic_settings(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get clinic settings."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -204,7 +161,6 @@ def get_clinic_settings(user: Dict[str, Any] = Depends(get_current_user)):
             row = cur.fetchone()
             
             if not row:
-                # Return defaults
                 return {
                     "name": "",
                     "address1": "",
@@ -220,18 +176,15 @@ def get_clinic_settings(user: Dict[str, Any] = Depends(get_current_user)):
             
             return row[0] if isinstance(row[0], dict) else json.loads(row[0])
 
-
 @router.patch("/clinic")
 def update_clinic_settings(
     data: ClinicSettings,
     user: Dict[str, Any] = Depends(require_doctor_or_owner)
 ):
-    """Update clinic settings."""
     update_data = data.model_dump(exclude_unset=True)
     
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Get existing settings
             cur.execute("SELECT settings FROM clinic_settings WHERE id = 1")
             row = cur.fetchone()
             
@@ -252,17 +205,14 @@ def update_clinic_settings(
     
     return {"message": "Clinic settings updated successfully"}
 
-
 @router.get("/clinic/schedule")
 def get_clinic_schedule(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get clinic schedule."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT schedule FROM clinic_settings WHERE id = 1")
             row = cur.fetchone()
             
             if not row or not row[0]:
-                # Return default schedule
                 return {
                     "schedule": [
                         {"day": "monday", "dayLabel": "Lundi", "enabled": True, "start": "09:00", "end": "18:00"},
@@ -277,13 +227,11 @@ def get_clinic_schedule(user: Dict[str, Any] = Depends(get_current_user)):
             
             return {"schedule": row[0] if isinstance(row[0], list) else json.loads(row[0])}
 
-
 @router.patch("/clinic/schedule")
 def update_clinic_schedule(
     data: ScheduleUpdate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update clinic schedule."""
     schedule_data = [s.model_dump() for s in data.schedule]
     
     with get_conn() as conn:
@@ -304,16 +252,8 @@ def update_clinic_schedule(
     
     return {"message": "Schedule updated successfully"}
 
-
-# ============================================================================
-# SECURITY SETTINGS ENDPOINTS
-# ============================================================================
-
 @router.get("/sessions")
 def get_active_sessions(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get active sessions for the current user."""
-    # In a full implementation, you would track sessions in a table
-    # For now, return a mock current session
     return {
         "sessions": [
             {
@@ -327,309 +267,32 @@ def get_active_sessions(user: Dict[str, Any] = Depends(get_current_user)):
         ]
     }
 
-
 @router.delete("/sessions/{session_id}")
 def logout_session(
     session_id: str,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Logout a specific session."""
-    # In a full implementation, you would invalidate the session token
     audit_event(user["id"], "SESSION_LOGOUT", metadata={"session_id": session_id})
     return {"message": "Session logged out"}
 
-
 @router.post("/sessions/logout-all")
 def logout_all_sessions(user: Dict[str, Any] = Depends(get_current_user)):
-    """Logout all sessions except current."""
     audit_event(user["id"], "ALL_SESSIONS_LOGOUT")
     return {"message": "All other sessions logged out"}
-
-
-# ============================================================================
-# 2FA TOTP ENDPOINTS
-# ============================================================================
-
-class TwoFASetup(BaseModel):
-    verification_code: str
-
-
-class TwoFAVerify(BaseModel):
-    code: str
-
-
-@router.get("/2fa/status")
-def get_2fa_status(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get 2FA status for the current user."""
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT totp_enabled, backup_codes_remaining
-                FROM user_security_settings
-                WHERE user_id = %s
-            """, (user["id"],))
-            row = cur.fetchone()
-            
-            if not row:
-                return {
-                    "enabled": False,
-                    "backup_codes_remaining": 0
-                }
-            
-            return {
-                "enabled": row[0] or False,
-                "backup_codes_remaining": row[1] or 0
-            }
-
-
-@router.post("/2fa/setup")
-def setup_2fa(user: Dict[str, Any] = Depends(get_current_user)):
-    """Initialize 2FA setup - generates a new TOTP secret and returns QR code."""
-    if not TOTP_AVAILABLE:
-        raise HTTPException(500, "2FA is not available. Install pyotp and qrcode packages.")
-    
-    # Generate a new TOTP secret
-    secret = pyotp.random_base32()
-    
-    # Create TOTP URI for authenticator apps
-    totp = pyotp.TOTP(secret)
-    user_email = user.get("email", "user@medicai.fr")
-    provisioning_uri = totp.provisioning_uri(
-        name=user_email,
-        issuer_name="MedicAI"
-    )
-    
-    # Generate QR code as base64
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(provisioning_uri)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert to base64
-    img_buffer = io.BytesIO()
-    qr_img.save(img_buffer, format='PNG')
-    img_buffer.seek(0)
-    qr_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-    
-    # Store the secret temporarily (not yet enabled)
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO user_security_settings (user_id, totp_secret, totp_enabled)
-                VALUES (%s, %s, false)
-                ON CONFLICT (user_id) DO UPDATE SET
-                    totp_secret = EXCLUDED.totp_secret,
-                    totp_enabled = false,
-                    updated_at = now()
-            """, (user["id"], secret))
-        conn.commit()
-    
-    return {
-        "secret": secret,
-        "qr_code": f"data:image/png;base64,{qr_base64}",
-        "provisioning_uri": provisioning_uri
-    }
-
-
-@router.post("/2fa/verify")
-def verify_and_enable_2fa(
-    data: TwoFASetup,
-    user: Dict[str, Any] = Depends(get_current_user)
-):
-    """Verify the 2FA code and enable 2FA if correct."""
-    if not TOTP_AVAILABLE:
-        raise HTTPException(500, "2FA is not available. Install pyotp and qrcode packages.")
-    
-    # Get the stored secret
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT totp_secret FROM user_security_settings
-                WHERE user_id = %s
-            """, (user["id"],))
-            row = cur.fetchone()
-            
-            if not row or not row[0]:
-                raise HTTPException(400, "2FA setup not initiated. Please start setup first.")
-            
-            secret = row[0]
-    
-    # Verify the code
-    totp = pyotp.TOTP(secret)
-    if not totp.verify(data.verification_code, valid_window=1):
-        raise HTTPException(400, "Invalid verification code. Please try again.")
-    
-    # Generate backup codes
-    import secrets
-    backup_codes = [secrets.token_hex(4).upper() for _ in range(8)]
-    
-    # Enable 2FA and store backup codes (hashed)
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE user_security_settings
-                SET totp_enabled = true,
-                    backup_codes = %s,
-                    backup_codes_remaining = 8,
-                    updated_at = now()
-                WHERE user_id = %s
-            """, (json.dumps(backup_codes), user["id"]))
-        conn.commit()
-    
-    audit_event(user["id"], "2FA_ENABLED")
-    
-    return {
-        "success": True,
-        "backup_codes": backup_codes,
-        "message": "Two-factor authentication enabled successfully"
-    }
-
-
-@router.post("/2fa/disable")
-def disable_2fa(
-    data: TwoFAVerify,
-    user: Dict[str, Any] = Depends(get_current_user)
-):
-    """Disable 2FA after verifying current code."""
-    if not TOTP_AVAILABLE:
-        raise HTTPException(500, "2FA is not available.")
-    
-    # Get the stored secret
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT totp_secret, totp_enabled FROM user_security_settings
-                WHERE user_id = %s
-            """, (user["id"],))
-            row = cur.fetchone()
-            
-            if not row or not row[1]:
-                raise HTTPException(400, "2FA is not enabled.")
-            
-            secret = row[0]
-    
-    # Verify the code
-    totp = pyotp.TOTP(secret)
-    if not totp.verify(data.code, valid_window=1):
-        raise HTTPException(400, "Invalid verification code.")
-    
-    # Disable 2FA
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE user_security_settings
-                SET totp_enabled = false,
-                    totp_secret = NULL,
-                    backup_codes = NULL,
-                    backup_codes_remaining = 0,
-                    updated_at = now()
-                WHERE user_id = %s
-            """, (user["id"],))
-        conn.commit()
-    
-    audit_event(user["id"], "2FA_DISABLED")
-    
-    return {"success": True, "message": "Two-factor authentication disabled"}
-
-
-@router.get("/2fa/backup-codes")
-def get_backup_codes(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get remaining backup codes count."""
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT backup_codes, backup_codes_remaining
-                FROM user_security_settings
-                WHERE user_id = %s AND totp_enabled = true
-            """, (user["id"],))
-            row = cur.fetchone()
-            
-            if not row:
-                raise HTTPException(400, "2FA is not enabled.")
-            
-            # Handle both JSONB (already parsed) and JSON string
-            codes = row[0] if isinstance(row[0], list) else (json.loads(row[0]) if row[0] else [])
-            
-            return {
-                "backup_codes": codes,
-                "remaining": row[1] or 0
-            }
-
-
-@router.post("/2fa/regenerate-backup-codes")
-def regenerate_backup_codes(
-    data: TwoFAVerify,
-    user: Dict[str, Any] = Depends(get_current_user)
-):
-    """Regenerate backup codes after verifying current TOTP code."""
-    if not TOTP_AVAILABLE:
-        raise HTTPException(500, "2FA is not available.")
-    
-    # Get the stored secret
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT totp_secret, totp_enabled FROM user_security_settings
-                WHERE user_id = %s
-            """, (user["id"],))
-            row = cur.fetchone()
-            
-            if not row or not row[1]:
-                raise HTTPException(400, "2FA is not enabled.")
-            
-            secret = row[0]
-    
-    # Verify the code
-    totp = pyotp.TOTP(secret)
-    if not totp.verify(data.code, valid_window=1):
-        raise HTTPException(400, "Invalid verification code.")
-    
-    # Generate new backup codes
-    import secrets
-    backup_codes = [secrets.token_hex(4).upper() for _ in range(8)]
-    
-    # Store new backup codes
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE user_security_settings
-                SET backup_codes = %s,
-                    backup_codes_remaining = 8,
-                    updated_at = now()
-                WHERE user_id = %s
-            """, (json.dumps(backup_codes), user["id"]))
-        conn.commit()
-    
-    audit_event(user["id"], "2FA_BACKUP_CODES_REGENERATED")
-    
-    return {
-        "backup_codes": backup_codes,
-        "message": "Backup codes regenerated successfully"
-    }
-
-
-# ============================================================================
-# PROFILE IMAGES ENDPOINTS
-# ============================================================================
 
 @router.post("/profile/photo")
 async def upload_profile_photo(
     file: UploadFile = File(...),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Upload profile photo."""
-    # Validate file type
     if file.content_type not in ["image/jpeg", "image/png", "image/gif"]:
         raise HTTPException(400, "Unsupported file type. Use JPG, PNG, or GIF.")
     
-    # Read file content
     content = await file.read()
     
-    # Check file size (2MB limit)
     if len(content) > 2 * 1024 * 1024:
         raise HTTPException(413, "File too large. Maximum size is 2MB.")
     
-    # Convert to base64 and store in database
     base64_image = base64.b64encode(content).decode('utf-8')
     data_url = f"data:{file.content_type};base64,{base64_image}"
     
@@ -648,10 +311,8 @@ async def upload_profile_photo(
     
     return {"success": True, "photo_url": data_url}
 
-
 @router.delete("/profile/photo")
 def delete_profile_photo(user: Dict[str, Any] = Depends(get_current_user)):
-    """Delete profile photo."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -665,25 +326,19 @@ def delete_profile_photo(user: Dict[str, Any] = Depends(get_current_user)):
     
     return {"success": True, "message": "Profile photo deleted"}
 
-
 @router.post("/profile/signature")
 async def upload_signature(
     file: UploadFile = File(...),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Upload signature image."""
-    # Validate file type
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(400, "Unsupported file type. Use JPG or PNG.")
     
-    # Read file content
     content = await file.read()
     
-    # Check file size (1MB limit)
     if len(content) > 1024 * 1024:
         raise HTTPException(413, "File too large. Maximum size is 1MB.")
     
-    # Convert to base64 and store in database
     base64_image = base64.b64encode(content).decode('utf-8')
     data_url = f"data:{file.content_type};base64,{base64_image}"
     
@@ -702,10 +357,8 @@ async def upload_signature(
     
     return {"success": True, "signature_url": data_url}
 
-
 @router.delete("/profile/signature")
 def delete_signature(user: Dict[str, Any] = Depends(get_current_user)):
-    """Delete signature image."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -719,25 +372,19 @@ def delete_signature(user: Dict[str, Any] = Depends(get_current_user)):
     
     return {"success": True, "message": "Signature deleted"}
 
-
 @router.post("/profile/stamp")
 async def upload_stamp(
     file: UploadFile = File(...),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Upload stamp/cachet image."""
-    # Validate file type
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(400, "Unsupported file type. Use JPG or PNG.")
     
-    # Read file content
     content = await file.read()
     
-    # Check file size (1MB limit)
     if len(content) > 1024 * 1024:
         raise HTTPException(413, "File too large. Maximum size is 1MB.")
     
-    # Convert to base64 and store in database
     base64_image = base64.b64encode(content).decode('utf-8')
     data_url = f"data:{file.content_type};base64,{base64_image}"
     
@@ -756,10 +403,8 @@ async def upload_stamp(
     
     return {"success": True, "stamp_url": data_url}
 
-
 @router.delete("/profile/stamp")
 def delete_stamp(user: Dict[str, Any] = Depends(get_current_user)):
-    """Delete stamp image."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -773,10 +418,8 @@ def delete_stamp(user: Dict[str, Any] = Depends(get_current_user)):
     
     return {"success": True, "message": "Stamp deleted"}
 
-
 @router.get("/profile/images")
 def get_profile_images(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get all profile images."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -799,29 +442,18 @@ def get_profile_images(user: Dict[str, Any] = Depends(get_current_user)):
                 "stamp_image": row[2]
             }
 
-
-# ============================================================================
-# SYSTEM STATUS ENDPOINTS
-# ============================================================================
-
 @router.get("/system/status")
 def get_system_status(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get system status including AI toggle status."""
-    ai_status = get_ai_status()
-    
     return {
-        "ai": ai_status,
         "database": {"status": "connected"},
         "version": "1.0.0",
     }
-
 
 @router.get("/audit-log")
 def get_user_audit_log(
     limit: int = 50,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get audit log for current user."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -846,11 +478,6 @@ def get_user_audit_log(
         ]
     }
 
-
-# ============================================================================
-# NOTIFICATION SETTINGS ENDPOINTS
-# ============================================================================
-
 class NotificationSettings(BaseModel):
     email_notifications: Optional[bool] = None
     browser_notifications: Optional[bool] = None
@@ -859,10 +486,8 @@ class NotificationSettings(BaseModel):
     urgent_alerts: Optional[bool] = None
     consultation_reminder: Optional[bool] = None
 
-
 @router.get("/notifications")
 def get_notification_settings(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get user notification settings."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -873,7 +498,6 @@ def get_notification_settings(user: Dict[str, Any] = Depends(get_current_user)):
             row = cur.fetchone()
             
             if not row:
-                # Return defaults
                 return {
                     "email_notifications": True,
                     "browser_notifications": False,
@@ -892,13 +516,11 @@ def get_notification_settings(user: Dict[str, Any] = Depends(get_current_user)):
                 "consultation_reminder": row[5],
             }
 
-
 @router.patch("/notifications")
 def update_notification_settings(
     data: NotificationSettings,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update user notification settings."""
     update_data = data.model_dump(exclude_unset=True)
     
     with get_conn() as conn:
@@ -928,19 +550,12 @@ def update_notification_settings(
     audit_event(user["id"], "NOTIFICATION_SETTINGS_UPDATE")
     return {"message": "Notification settings updated successfully"}
 
-
-# ============================================================================
-# PRIVACY SETTINGS ENDPOINTS
-# ============================================================================
-
 class PrivacySettings(BaseModel):
     retention_policy: Optional[str] = None
     consent_template: Optional[str] = None
 
-
 @router.get("/privacy")
 def get_privacy_settings(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get user privacy settings."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -960,13 +575,11 @@ def get_privacy_settings(user: Dict[str, Any] = Depends(get_current_user)):
                 "consent_template": row[1] or "",
             }
 
-
 @router.patch("/privacy")
 def update_privacy_settings(
     data: PrivacySettings,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update user privacy settings."""
     update_data = data.model_dump(exclude_unset=True)
     
     with get_conn() as conn:
@@ -996,34 +609,22 @@ def update_privacy_settings(
     audit_event(user["id"], "PRIVACY_SETTINGS_UPDATE")
     return {"message": "Privacy settings updated successfully"}
 
-
 @router.post("/export-data")
 def request_data_export(user: Dict[str, Any] = Depends(get_current_user)):
-    """Request export of all user data."""
-    # In a production system, this would trigger an async job
     audit_event(user["id"], "DATA_EXPORT_REQUEST")
     return {"message": "Export request received. You will receive an email with the download link."}
 
-
 @router.post("/delete-account")
 def request_account_deletion(user: Dict[str, Any] = Depends(get_current_user)):
-    """Request account deletion."""
-    # In a production system, this would schedule deletion after grace period
     audit_event(user["id"], "ACCOUNT_DELETION_REQUEST")
     return {"message": "Account deletion request received. Your account will be deleted within 30 days."}
 
-
-# ============================================================================
-# TEMPLATES ENDPOINTS
-# ============================================================================
-
 class TemplateCreate(BaseModel):
     name: str
-    type: str  # ordonnance, certificat, lettre, compte_rendu, autre
+    type: str
     content: str
-    header_image: Optional[str] = None  # Base64 encoded image
-    footer_image: Optional[str] = None  # Base64 encoded image
-
+    header_image: Optional[str] = None
+    footer_image: Optional[str] = None
 
 class TemplateUpdate(BaseModel):
     name: Optional[str] = None
@@ -1032,10 +633,8 @@ class TemplateUpdate(BaseModel):
     header_image: Optional[str] = None
     footer_image: Optional[str] = None
 
-
 @router.get("/templates")
 def get_templates(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get all templates for the user."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1062,13 +661,11 @@ def get_templates(user: Dict[str, Any] = Depends(get_current_user)):
         ]
     }
 
-
 @router.post("/templates")
 def create_template(
     data: TemplateCreate,
     user: Dict[str, Any] = Depends(require_doctor_or_owner)
 ):
-    """Create a new template."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1089,14 +686,12 @@ def create_template(
         "created_at": row[6].isoformat() if row[6] else None,
     }
 
-
 @router.patch("/templates/{template_id}")
 def update_template(
     template_id: str,
     data: TemplateUpdate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update a template."""
     update_data = data.model_dump(exclude_unset=True)
     
     if not update_data:
@@ -1128,13 +723,11 @@ def update_template(
         "updated_at": row[6].isoformat() if row[6] else None,
     }
 
-
 @router.delete("/templates/{template_id}")
 def delete_template(
     template_id: str,
     user: Dict[str, Any] = Depends(require_doctor_or_owner)
 ):
-    """Delete a template."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1150,14 +743,11 @@ def delete_template(
     
     return {"message": "Template deleted successfully"}
 
-
-# Template AI Generation endpoint
 @router.post("/templates/generate")
 def generate_template_content(
     request: Dict[str, Any],
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Generate template content using AI."""
     template_type = request.get("type")
     description = request.get("description")
     example_content = request.get("exampleContent")
@@ -1165,7 +755,6 @@ def generate_template_content(
     if not template_type or not description:
         raise HTTPException(400, "Type and description are required")
     
-    # Mock AI generation for now - replace with actual AI service call
     type_labels = {
         "prescription": "ordonnance",
         "certificate": "certificat médical",
@@ -1175,7 +764,6 @@ def generate_template_content(
     
     type_label = type_labels.get(template_type, "document")
     
-    # Generate basic template content
     content = f"""# {type_label.title()}
 
 Date: {{{{date}}}}
@@ -1237,21 +825,16 @@ Dr. {{{{doctor_name}}}}
 """
     
     if example_content:
-        # Add styling context to the generated content
         content += f"\n\n<!-- Style context: {example_content[:200]}... -->"
     
     return {"content": content}
 
-
-# Template style extraction endpoint  
 @router.post("/templates/extract-style")
 def extract_template_style(
     file: UploadFile = File(...),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Extract styling information from an uploaded document."""
     
-    # Validate file type
     allowed_types = [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1263,19 +846,16 @@ def extract_template_style(
     if file.content_type not in allowed_types:
         raise HTTPException(400, "Unsupported file type. Use PDF, DOCX, PNG, or JPEG.")
     
-    # Check file size (10MB limit)
     if hasattr(file.file, 'seek'):
-        file.file.seek(0, 2)  # Seek to end
+        file.file.seek(0, 2)
         file_size = file.file.tell()
-        file.file.seek(0)  # Reset to beginning
+        file.file.seek(0)
         if file_size > 10 * 1024 * 1024:
             raise HTTPException(413, "File too large. Maximum size is 10MB.")
     
-    # Mock extraction for now - replace with actual document processing
     import time
-    time.sleep(2)  # Simulate processing time
+    time.sleep(2)
     
-    # Return mock extracted styling information
     extracted_data = {
         "header": f"Cabinet Médical Dr. {user.get('first_name', 'NOM')} {user.get('last_name', 'PRENOM')}",
         "footer": "Consultations sur rendez-vous uniquement",
@@ -1290,26 +870,18 @@ def extract_template_style(
     
     return extracted_data
 
-
-# ============================================================================
-# SNIPPETS ENDPOINTS
-# ============================================================================
-
 class SnippetCreate(BaseModel):
     shortcode: str
     expansion: str
     category: Optional[str] = None
-
 
 class SnippetUpdate(BaseModel):
     shortcode: Optional[str] = None
     expansion: Optional[str] = None
     category: Optional[str] = None
 
-
 @router.get("/snippets")
 def get_snippets(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get all snippets for the user."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1333,13 +905,11 @@ def get_snippets(user: Dict[str, Any] = Depends(get_current_user)):
         ]
     }
 
-
 @router.post("/snippets")
 def create_snippet(
     data: SnippetCreate,
     user: Dict[str, Any] = Depends(require_doctor_or_owner)
 ):
-    """Create a new snippet."""
     if not data.shortcode.startswith("/"):
         raise HTTPException(400, "Shortcode must start with /")
     
@@ -1366,14 +936,12 @@ def create_snippet(
         "created_at": row[4].isoformat() if row[4] else None,
     }
 
-
 @router.patch("/snippets/{snippet_id}")
 def update_snippet(
     snippet_id: str,
     data: SnippetUpdate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update a snippet."""
     update_data = data.model_dump(exclude_unset=True)
     
     if not update_data:
@@ -1410,13 +978,11 @@ def update_snippet(
         "category": row[3] or "",
     }
 
-
 @router.delete("/snippets/{snippet_id}")
 def delete_snippet(
     snippet_id: str,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Delete a snippet."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1432,18 +998,11 @@ def delete_snippet(
     
     return {"message": "Snippet deleted successfully"}
 
-
-# ============================================================================
-# REPORTS / STATISTICS ENDPOINTS
-# ============================================================================
-
 @router.get("/reports/stats")
 def get_report_stats(
     period: str = "30days",
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get statistics for reports page."""
-    # Calculate date range based on period
     from datetime import timedelta
     
     days_map = {
@@ -1456,7 +1015,6 @@ def get_report_stats(
     
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Get consultation count - patients are shared, no user_id filter needed
             cur.execute("""
                 SELECT COUNT(*) 
                 FROM consultations c
@@ -1464,7 +1022,6 @@ def get_report_stats(
             """, (days,))
             consultations = cur.fetchone()[0] or 0
             
-            # Get previous period for comparison
             cur.execute("""
                 SELECT COUNT(*) 
                 FROM consultations c
@@ -1473,7 +1030,6 @@ def get_report_stats(
             """, (days * 2, days))
             prev_consultations = cur.fetchone()[0] or 0
             
-            # Get document count
             cur.execute("""
                 SELECT COUNT(*) 
                 FROM documents d
@@ -1489,7 +1045,6 @@ def get_report_stats(
             """, (days * 2, days))
             prev_documents = cur.fetchone()[0] or 0
             
-            # Get active patients count (patients with consultations in period)
             cur.execute("""
                 SELECT COUNT(DISTINCT c.patient_id) 
                 FROM consultations c
@@ -1497,7 +1052,6 @@ def get_report_stats(
             """, (days,))
             active_patients = cur.fetchone()[0] or 0
             
-            # Get weekly breakdown
             cur.execute("""
                 SELECT 
                     EXTRACT(DOW FROM c.created_at) as day_of_week,
@@ -1518,7 +1072,6 @@ def get_report_stats(
             """)
             weekly_documents = {int(row[0]): row[1] for row in cur.fetchall()}
             
-            # Get document type breakdown
             cur.execute("""
                 SELECT document_type, COUNT(*) as count
                 FROM documents d
@@ -1528,14 +1081,12 @@ def get_report_stats(
             """, (days,))
             doc_types = cur.fetchall()
     
-    # Calculate percentage changes
     def calc_change(current, previous):
         if previous == 0:
             return "+100%" if current > 0 else "0%"
         change = ((current - previous) / previous) * 100
         return f"+{change:.0f}%" if change >= 0 else f"{change:.0f}%"
     
-    # Day mapping for weekly data
     days_order = [
         {"day": "monday", "dayLabel": "Lundi", "dow": 1},
         {"day": "tuesday", "dayLabel": "Mardi", "dow": 2},
@@ -1555,7 +1106,6 @@ def get_report_stats(
         for d in days_order
     ]
     
-    # Calculate total for document type percentages
     total_docs = sum(row[1] for row in doc_types) or 1
     doc_type_breakdown = [
         {
@@ -1566,7 +1116,6 @@ def get_report_stats(
         for row in doc_types
     ]
     
-    # Estimate time saved (rough calculation: 5 min per document)
     time_saved_minutes = documents * 5
     time_saved_hours = time_saved_minutes / 60
     

@@ -7,7 +7,6 @@ import {
   Plus,
   Trash2,
   Shield,
-  ShieldCheck,
   Copy,
   Eye,
   EyeOff,
@@ -42,7 +41,6 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [myRole, setMyRole] = useState<string>('doctor');
 
-  // Add assistant dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addForm, setAddForm] = useState({
     email: '',
@@ -53,7 +51,6 @@ export default function TeamPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Credentials dialog (shown after adding)
   const [credentialsDialog, setCredentialsDialog] = useState<{
     open: boolean;
     email: string;
@@ -61,7 +58,6 @@ export default function TeamPage() {
   }>({ open: false, email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -107,7 +103,6 @@ export default function TeamPage() {
       setAddDialogOpen(false);
       setAddForm({ email: '', first_name: '', last_name: '', password: '' });
 
-      // Show credentials
       setCredentialsDialog({
         open: true,
         email: result.email,
@@ -158,7 +153,7 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#111]">Équipe</h1>
@@ -185,7 +180,7 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* Capacity indicator */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-[#111]">Places assistants</span>
@@ -211,9 +206,9 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* Team Members */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] overflow-hidden">
-        {/* Doctor (always first) */}
+        {}
         {team?.members
           .filter((m) => m.role === 'doctor')
           .map((member) => (
@@ -221,12 +216,12 @@ export default function TeamPage() {
               key={member.id}
               className="flex items-center gap-3 p-4 border-b border-[#E5E5E5] bg-[var(--medicai-green-lighter)]/40"
             >
-              {/* Avatar */}
+              {}
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--medicai-green-light)] border border-[var(--medicai-green)]/30 flex-shrink-0">
                 <Stethoscope className="h-5 w-5 text-[var(--medicai-green-darker)]" />
               </div>
 
-              {/* Info */}
+              {}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm text-[#111] truncate">
@@ -237,9 +232,6 @@ export default function TeamPage() {
                   <Badge className="bg-[var(--medicai-green-light)] text-[var(--medicai-green-darker)] border-[var(--medicai-green)]/30 text-[10px] font-medium px-1.5 py-0">
                     Médecin
                   </Badge>
-                  {member.totp_enabled && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-[var(--medicai-green-darker)]" />
-                  )}
                 </div>
                 <p className="text-xs text-[#888] truncate">{member.email}</p>
               </div>
@@ -248,7 +240,7 @@ export default function TeamPage() {
             </div>
           ))}
 
-        {/* Assistants */}
+        {}
         {team?.members
           .filter((m) => m.role === 'assistant')
           .map((member) => (
@@ -256,12 +248,12 @@ export default function TeamPage() {
               key={member.id}
               className="flex items-center gap-3 p-4 border-b border-[#E5E5E5] last:border-b-0"
             >
-              {/* Avatar */}
+              {}
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5] border border-[#E5E5E5] flex-shrink-0">
                 <Users className="h-4 w-4 text-[#888]" />
               </div>
 
-              {/* Info */}
+              {}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm text-[#111] truncate">
@@ -275,14 +267,11 @@ export default function TeamPage() {
                   >
                     Assistant
                   </Badge>
-                  {member.totp_enabled && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-[var(--medicai-green-darker)]" />
-                  )}
                 </div>
                 <p className="text-xs text-[#888] truncate">{member.email}</p>
               </div>
 
-              {/* Actions */}
+              {}
               {isDoctor && (
                 <Button
                   variant="ghost"
@@ -296,7 +285,7 @@ export default function TeamPage() {
             </div>
           ))}
 
-        {/* Empty state for assistants */}
+        {}
         {assistantCount === 0 && (
           <div className="flex flex-col items-center justify-center py-10 text-[#999]">
             <Users className="h-10 w-10 mb-3 opacity-40" />
@@ -472,7 +461,7 @@ export default function TeamPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ======== CREDENTIALS DIALOG ======== */}
+      {}
       <Dialog
         open={credentialsDialog.open}
         onOpenChange={(open) => {
@@ -558,7 +547,7 @@ export default function TeamPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ======== DELETE CONFIRMATION DIALOG ======== */}
+      {}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>

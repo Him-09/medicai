@@ -36,11 +36,11 @@ export default function AccountPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [isUploadingStamp, setIsUploadingStamp] = useState(false);
-  
+
   const photoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
   const stampInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [profile, setProfile] = useState({
     firstName: '',
     lastName: '',
@@ -63,7 +63,7 @@ export default function AccountPage() {
         settingsApi.getProfile(),
         settingsApi.getProfileImages(),
       ]);
-      
+
       setProfile({
         firstName: profileData.first_name || '',
         lastName: profileData.last_name || '',
@@ -74,8 +74,7 @@ export default function AccountPage() {
         outputLanguage: profileData.output_language || 'fr',
         aiCompactness: profileData.ai_compactness || 'normal',
       });
-      
-      // Load profile images
+
       setProfilePhoto(imagesData.profile_photo);
       setSignatureImage(imagesData.signature_image);
       setStampImage(imagesData.stamp_image);
@@ -129,7 +128,7 @@ export default function AccountPage() {
       toast.error(error.message || 'Erreur lors du téléchargement');
     } finally {
       setIsUploadingPhoto(false);
-      // Reset input
+
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
   };
@@ -231,7 +230,7 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-5">
-      {/* Hidden file inputs */}
+      {}
       <input
         ref={photoInputRef}
         type="file"
@@ -254,7 +253,7 @@ export default function AccountPage() {
         className="hidden"
       />
 
-      {/* Header */}
+      {}
       <div>
         <h1 className="text-2xl font-bold text-[#111]">Mon compte</h1>
         <p className="text-sm text-[#666] mt-0.5">
@@ -262,7 +261,7 @@ export default function AccountPage() {
         </p>
       </div>
 
-      {/* Profile Photo Section */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14 border-2 border-[#E5E5E5]">
@@ -271,9 +270,9 @@ export default function AccountPage() {
           </Avatar>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-9 text-sm border-[#E5E5E5]"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isUploadingPhoto}
@@ -285,9 +284,9 @@ export default function AccountPage() {
                 )}
                 {isUploadingPhoto ? 'Téléchargement...' : 'Changer la photo'}
               </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-9 text-sm text-[#666]"
                 onClick={() => profilePhoto ? setShowDeletePhotoDialog(true) : toast.info('Aucune photo à supprimer')}
                 disabled={isUploadingPhoto}
@@ -300,7 +299,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Delete Photo Dialog */}
+      {}
       <AlertDialog open={showDeletePhotoDialog} onOpenChange={setShowDeletePhotoDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -318,7 +317,7 @@ export default function AccountPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Personal Information */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <h2 className="text-sm font-semibold text-[#111] mb-3">Informations personnelles</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -363,7 +362,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Professional Information */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <h2 className="text-sm font-semibold text-[#111] mb-3">Informations professionnelles</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -402,7 +401,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Signature & Stamp */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <h2 className="text-sm font-semibold text-[#111] mb-3">Signature et cachet</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -410,9 +409,9 @@ export default function AccountPage() {
             <Label className="text-xs text-[#555]">Signature</Label>
             {signatureImage ? (
               <div className="relative border-2 border-[#E5E5E5] rounded-lg p-2 group">
-                <img 
-                  src={signatureImage} 
-                  alt="Signature" 
+                <img
+                  src={signatureImage}
+                  alt="Signature"
                   className="max-h-20 mx-auto object-contain"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
@@ -438,7 +437,7 @@ export default function AccountPage() {
                 </div>
               </div>
             ) : (
-              <div 
+              <div
                 className={`border-2 border-dashed border-[#E5E5E5] rounded-lg p-4 text-center hover:border-[var(--medicai-green)] hover:bg-[#FAFAFA] transition-colors cursor-pointer ${isUploadingSignature ? 'opacity-50' : ''}`}
                 onClick={() => !isUploadingSignature && signatureInputRef.current?.click()}
               >
@@ -456,9 +455,9 @@ export default function AccountPage() {
             <Label className="text-xs text-[#555]">Cachet</Label>
             {stampImage ? (
               <div className="relative border-2 border-[#E5E5E5] rounded-lg p-2 group">
-                <img 
-                  src={stampImage} 
-                  alt="Cachet" 
+                <img
+                  src={stampImage}
+                  alt="Cachet"
                   className="max-h-20 mx-auto object-contain"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
@@ -484,7 +483,7 @@ export default function AccountPage() {
                 </div>
               </div>
             ) : (
-              <div 
+              <div
                 className={`border-2 border-dashed border-[#E5E5E5] rounded-lg p-4 text-center hover:border-[var(--medicai-green)] hover:bg-[#FAFAFA] transition-colors cursor-pointer ${isUploadingStamp ? 'opacity-50' : ''}`}
                 onClick={() => !isUploadingStamp && stampInputRef.current?.click()}
               >
@@ -501,7 +500,7 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* AI Preferences */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <h2 className="text-sm font-semibold text-[#111] mb-3">Préférences IA</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -540,11 +539,11 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Save Button */}
+      {}
       <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
-          disabled={isLoading} 
+        <Button
+          onClick={handleSave}
+          disabled={isLoading}
           className="h-9 px-5 bg-black hover:bg-neutral-800 text-white text-sm"
         >
           {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}

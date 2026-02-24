@@ -56,7 +56,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#111]">Rapports</h1>
@@ -83,7 +83,7 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
-          {/* Stats Grid */}
+          {}
           <div className="grid grid-cols-4 gap-3">
             {stats.map((stat) => (
               <div key={stat.label} className="bg-white rounded-lg border border-[#E5E5E5] p-3">
@@ -91,7 +91,7 @@ export default function ReportsPage() {
                 <p className="text-xl font-bold text-[#111] mt-0.5">{stat.value}</p>
                 {stat.change && (
                   <p className={`text-xs mt-0.5 ${
-                    stat.changeType === 'positive' ? 'text-[var(--medicai-green-dark)]' : 
+                    stat.changeType === 'positive' ? 'text-[var(--medicai-green-dark)]' :
                     stat.changeType === 'negative' ? 'text-destructive' : 'text-[#666]'
                   }`}>
                     {stat.change}
@@ -101,7 +101,7 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          {/* Activity Chart */}
+          {}
           <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide">
@@ -118,11 +118,11 @@ export default function ReportsPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-0">
               {weeklyData.map((day, index) => (
-                <div 
-                  key={day.day} 
+                <div
+                  key={day.day}
                   className={`flex items-center gap-3 py-2 ${
                     index < weeklyData.length - 1 ? 'border-b border-[#E5E5E5]' : ''
                   }`}
@@ -131,7 +131,7 @@ export default function ReportsPage() {
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-black rounded-full transition-all"
                           style={{ width: `${(day.consultations / maxConsultations) * 100}%` }}
                         ></div>
@@ -140,7 +140,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-[var(--medicai-green)] rounded-full transition-all"
                           style={{ width: `${(day.documents / maxDocuments) * 100}%` }}
                         ></div>
@@ -155,7 +155,7 @@ export default function ReportsPage() {
         </>
       )}
 
-      {/* Time Savings */}
+      {}
       <div className="bg-gradient-to-r from-[var(--medicai-green-light)] to-[var(--medicai-green-light)]/50 rounded-lg border border-[var(--medicai-green)] p-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-[var(--medicai-green-light)] flex items-center justify-center">
@@ -171,12 +171,12 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Document Types */}
+      {}
       <div className="bg-white rounded-lg border border-[#E5E5E5] p-4">
         <div className="uppercase text-[10px] font-semibold text-[#999] tracking-wide mb-3">
           Documents par type
         </div>
-        
+
         {documentTypes.length === 0 ? (
           <p className="text-sm text-[#666] py-4 text-center">Aucune donnée disponible</p>
         ) : (
@@ -188,7 +188,7 @@ export default function ReportsPage() {
                   <span className="text-xs text-[#666]">{item.count} ({item.percentage}%)</span>
                 </div>
                 <div className="h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-black rounded-full transition-all"
                     style={{ width: `${item.percentage}%` }}
                   ></div>

@@ -37,10 +37,6 @@ import {
   getDefaultTemplate,
 } from '@/types/default-templates';
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 interface TemplateOnboardingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,10 +55,6 @@ interface OnboardingResult {
   defaultSpecialty?: string;
   saveAsDefault: boolean;
 }
-
-// =============================================================================
-// TEMPLATE PREVIEW CARDS
-// =============================================================================
 
 interface TemplateCardProps {
   type: 'prescription' | 'referral' | 'followup' | 'visit_note';
@@ -83,23 +75,23 @@ function TemplateCard({ type, template, selected, onSelect }: TemplateCardProps)
     followup: <Calendar className="h-4 w-4" />,
     visit_note: <FileText className="h-4 w-4" />,
   };
-  
+
   const colors = {
     prescription: 'bg-muted/50 border-border hover:border-[var(--medicai-green)]',
     referral: 'bg-muted/50 border-border hover:border-[var(--medicai-green)]',
     followup: 'bg-muted/50 border-border hover:border-[var(--medicai-green)]',
     visit_note: 'bg-muted/50 border-border hover:border-[var(--medicai-green)]',
   };
-  
+
   const selectedColors = {
     prescription: 'border-[var(--medicai-green)] bg-[var(--medicai-green-light)]',
     referral: 'border-[var(--medicai-green)] bg-[var(--medicai-green-light)]',
     followup: 'border-[var(--medicai-green)] bg-[var(--medicai-green-light)]',
     visit_note: 'border-[var(--medicai-green)] bg-[var(--medicai-green-light)]',
   };
-  
+
   return (
-    <div 
+    <div
       className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
         selected ? selectedColors[type] : colors[type]
       }`}
@@ -123,10 +115,6 @@ function TemplateCard({ type, template, selected, onSelect }: TemplateCardProps)
   );
 }
 
-// =============================================================================
-// MAIN MODAL
-// =============================================================================
-
 export function TemplateOnboardingModal({
   open,
   onOpenChange,
@@ -136,8 +124,7 @@ export function TemplateOnboardingModal({
   const [step, setStep] = useState<'choice' | 'customize'>('choice');
   const [selectedSpecialty, setSelectedSpecialty] = useState(specialty || 'general');
   const [saveAsDefault, setSaveAsDefault] = useState(true);
-  
-  // Selected template IDs for each type
+
   const [selectedTemplates, setSelectedTemplates] = useState<{
     prescription: string;
     referral: string;
@@ -149,7 +136,7 @@ export function TemplateOnboardingModal({
     followup: followupTemplates[0]?.id || '',
     visit_note: visitNoteTemplates[0]?.id || '',
   });
-  
+
   const handleUseDefaults = () => {
     onComplete({
       useDefaults: true,
@@ -157,11 +144,11 @@ export function TemplateOnboardingModal({
     });
     onOpenChange(false);
   };
-  
+
   const handleCustomize = () => {
     setStep('customize');
   };
-  
+
   const handleFinishCustomization = () => {
     onComplete({
       useDefaults: false,
@@ -171,11 +158,11 @@ export function TemplateOnboardingModal({
     });
     onOpenChange(false);
   };
-  
+
   const selectTemplate = (type: keyof typeof selectedTemplates, id: string) => {
     setSelectedTemplates(prev => ({ ...prev, [type]: id }));
   };
-  
+
   if (step === 'choice') {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -186,14 +173,14 @@ export function TemplateOnboardingModal({
               Configuration des modèles
             </DialogTitle>
             <DialogDescription>
-              MedicAI propose des modèles par défaut pour vos ordonnances, lettres de référence et plans de suivi. 
+              MedicAI propose des modèles par défaut pour vos ordonnances, lettres de référence et plans de suivi.
               Vous pouvez les utiliser directement ou les personnaliser.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
-            {/* Option 1: Use Defaults */}
-            <div 
+            {}
+            <div
               className="p-4 rounded-lg border-2 border-primary bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
               onClick={handleUseDefaults}
             >
@@ -215,9 +202,9 @@ export function TemplateOnboardingModal({
                 <Badge variant="secondary" className="text-[10px]">Notes de visite</Badge>
               </div>
             </div>
-            
+
             {/* Option 2: Customize */}
-            <div 
+            <div
               className="p-4 rounded-lg border-2 border-muted cursor-pointer hover:border-primary/50 transition-colors"
               onClick={handleCustomize}
             >
@@ -234,7 +221,7 @@ export function TemplateOnboardingModal({
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
             <div className="flex items-center gap-2 w-full">
               <Checkbox
@@ -251,7 +238,7 @@ export function TemplateOnboardingModal({
       </Dialog>
     );
   }
-  
+
   // Customize step
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,7 +252,7 @@ export function TemplateOnboardingModal({
             Sélectionnez les modèles que vous souhaitez utiliser pour chaque type de document.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
           {/* Specialty Selection */}
           <div>
@@ -284,7 +271,7 @@ export function TemplateOnboardingModal({
               </SelectContent>
             </Select>
           </div>
-          
+
           {/* Prescription Templates */}
           <div>
             <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -303,7 +290,7 @@ export function TemplateOnboardingModal({
               ))}
             </div>
           </div>
-          
+
           {/* Referral Templates */}
           <div>
             <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -322,7 +309,7 @@ export function TemplateOnboardingModal({
               ))}
             </div>
           </div>
-          
+
           {/* Followup Templates */}
           <div>
             <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -341,7 +328,7 @@ export function TemplateOnboardingModal({
               ))}
             </div>
           </div>
-          
+
           {/* Visit Note Templates */}
           <div>
             <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -361,7 +348,7 @@ export function TemplateOnboardingModal({
             </div>
           </div>
         </div>
-        
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex items-center gap-2 flex-1">
             <Checkbox

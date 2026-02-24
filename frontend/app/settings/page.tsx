@@ -36,14 +36,6 @@ export default function SettingsPage() {
       actionLabel: 'Compléter',
     },
     {
-      id: 'integrations',
-      title: 'Connecter vos intégrations',
-      description: 'Configurez l\'email pour recevoir les documents patients automatiquement.',
-      href: '/settings/integrations',
-      completed: false,
-      actionLabel: 'Connecter',
-    },
-    {
       id: 'security',
       title: 'Sécuriser votre compte',
       description: 'Activez l\'authentification à deux facteurs pour plus de sécurité.',
@@ -62,15 +54,13 @@ export default function SettingsPage() {
       setIsFetching(true);
       const [profile, clinicSettings] = await Promise.all([
         settingsApi.getProfile(),
-        settingsApi.getClinicSettings(),
+        settingsApi.getClinic(),
       ]);
-      
-      // Check clinic profile completion
+
       const clinicComplete = !!(clinicSettings.name && clinicSettings.city);
-      
-      // Check doctor identity completion
+
       const identityComplete = !!(profile.first_name && profile.last_name && profile.specialty);
-      
+
       setTasks(prev => prev.map(task => {
         if (task.id === 'clinic-profile') {
           return { ...task, completed: clinicComplete, actionLabel: clinicComplete ? 'Fait' : 'Configurer' };
@@ -91,7 +81,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {}
       <div>
         <h1 className="text-2xl font-bold text-[#111]">Mise en route</h1>
         <p className="text-sm text-[#666] mt-0.5">
@@ -105,7 +95,7 @@ export default function SettingsPage() {
         </div>
       ) : (
         <>
-          {/* Tasks List - Fernand style */}
+          {}
           <div className="bg-white rounded-lg border border-[#E5E5E5] overflow-hidden">
             {tasks.map((task, index) => (
               <div
@@ -116,19 +106,19 @@ export default function SettingsPage() {
                   task.completed && 'bg-[#FAFAFA]'
                 )}
               >
-                {/* Status Icon */}
+                {}
                 <div className={cn(
                   'flex h-6 w-6 items-center justify-center rounded-full flex-shrink-0',
-                  task.completed 
-                    ? 'bg-[var(--medicai-green-light)]' 
+                  task.completed
+                    ? 'bg-[var(--medicai-green-light)]'
                     : 'border-2 border-[#E5E5E5]'
                 )}>
                   {task.completed && (
                     <Check className="h-3 w-3 text-[var(--medicai-green-dark)]" />
                   )}
                 </div>
-                
-                {/* Content */}
+
+                {}
                 <div className="flex-1 min-w-0">
                   <h3 className={cn(
                     'font-medium text-sm',
@@ -138,16 +128,16 @@ export default function SettingsPage() {
                   </h3>
                   <p className="text-xs text-[#666] mt-0.5">{task.description}</p>
                 </div>
-                
-                {/* Action Button */}
+
+                {}
                 <Link href={task.href}>
-                  <Button 
+                  <Button
                     variant={task.completed ? 'ghost' : 'outline'}
                     size="sm"
                     className={cn(
                       'h-8 px-3 text-xs font-medium rounded-md',
-                      task.completed 
-                        ? 'text-[var(--medicai-green-dark)] hover:bg-[var(--medicai-green-light)]' 
+                      task.completed
+                        ? 'text-[var(--medicai-green-dark)] hover:bg-[var(--medicai-green-light)]'
                         : 'text-[var(--medicai-green-dark)] border-[var(--medicai-green)] hover:bg-[var(--medicai-green-light)] hover:text-[var(--medicai-green-dark)]'
                     )}
                   >
@@ -158,7 +148,7 @@ export default function SettingsPage() {
             ))}
           </div>
 
-          {/* Info Box - Fernand style */}
+          {}
           <div className="flex items-start gap-2 p-3 bg-[#FFF9E6] border border-[#F5E6B3] rounded-lg">
             <Info className="h-4 w-4 text-[#B8860B] flex-shrink-0 mt-0.5" />
             <p className="text-xs text-[#8B7355]">

@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { 
-  HelpCircle, 
-  MessageCircle, 
-  Book, 
-  FileText, 
+import {
+  HelpCircle,
+  MessageCircle,
+  Book,
+  FileText,
   Mail,
   ExternalLink,
   ChevronRight,
@@ -135,7 +135,7 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
       <div className="max-w-4xl mx-auto px-8 py-8">
-        {/* Header */}
+        {}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-[var(--medicai-green-light)] mb-4">
             <HelpCircle className="h-7 w-7 text-foreground" />
@@ -174,11 +174,11 @@ export default function HelpPage() {
           {/* FAQ Section */}
           <div className="bg-white rounded-lg border border-[#E5E5E5] p-6 mb-8">
             <h2 className="text-lg font-semibold text-[#111] mb-4">Questions fréquentes</h2>
-            
+
             <Accordion type="single" collapsible className="space-y-2">
               {filteredFaqs.map((faq, index) => (
-                <AccordionItem 
-                  key={index} 
+                <AccordionItem
+                  key={index}
                   value={`faq-${index}`}
                   className="border border-[#E5E5E5] rounded-lg px-4"
                 >
@@ -202,7 +202,7 @@ export default function HelpPage() {
           {/* All Categories */}
           <div className="bg-white rounded-lg border border-[#E5E5E5] p-6 mb-8">
             <h2 className="text-lg font-semibold text-[#111] mb-4">Toutes les catégories</h2>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {helpCategories.map((category) => (
                 <div key={category.id} className="space-y-2">
@@ -240,15 +240,15 @@ export default function HelpPage() {
                   Notre équipe de support est disponible pour répondre à vos questions.
                 </p>
                 <div className="flex items-center gap-3 mt-4">
-                  <Button 
+                  <Button
                     className="h-9 bg-black hover:bg-neutral-800"
                     onClick={() => window.open('mailto:support@medicai.ma', '_blank')}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Contacter le support
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="h-9 border-[#E5E5E5]"
                     onClick={() => window.open('https://docs.medicai.ma', '_blank')}
                   >
@@ -263,7 +263,7 @@ export default function HelpPage() {
 
           {/* Back to Settings */}
           <div className="mt-6 text-center">
-            <Link 
+            <Link
               href="/settings"
               className="text-sm text-[#666] hover:text-[var(--medicai-green-dark)] transition-colors"
             >

@@ -25,8 +25,6 @@ const settingsNavigation = [
     items: [
       { name: 'Général', href: '/settings/clinic' },
       { name: 'Modèles', href: '/settings/templates' },
-      { name: 'Intégrations', href: '/settings/integrations' },
-      { name: 'Base de connaissances', href: '/settings/knowledge-base' },
       { name: 'Équipe', href: '/settings/team' },
     ],
   },
@@ -48,7 +46,7 @@ export default function SettingsLayout({
 
   return (
     <div className="flex h-full bg-white">
-      {/* Settings Sidebar - Fernand style */}
+      {}
       <div className="w-56 border-r border-[#EAEAEA] bg-white mt-6 flex-shrink-0">
         <ScrollArea className="h-full py-6">
           <div className="space-y-6 px-4">
@@ -59,11 +57,11 @@ export default function SettingsLayout({
                 </h3>
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
-                    const isActive = pathname === item.href || 
+                    const isActive = pathname === item.href ||
                       (item.href !== '/settings' && pathname.startsWith(item.href));
                     const isGettingStarted = item.href === '/settings' && pathname === '/settings';
                     const active = isGettingStarted || isActive;
-                    
+
                     return (
                       <Link
                         key={item.href}
@@ -86,7 +84,7 @@ export default function SettingsLayout({
         </ScrollArea>
       </div>
 
-      {/* Settings Content */}
+      {}
       <div className="flex-1 overflow-y-auto bg-[#FAFAFA]">
         <div className="max-w-4xl px-8 py-8 mx-auto mt-15">
           {children}

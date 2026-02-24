@@ -4,9 +4,7 @@ from datetime import datetime
 from medicai.storage.postgres import get_conn
 from medicai.storage.maintenance import unarchive_patient
 
-
 def init_consultations_table() -> None:
-    """Create consultations table if it doesn't exist."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -30,7 +28,6 @@ def init_consultations_table() -> None:
             )
         conn.commit()
 
-
 def create_consultation(
     *,
     consultation_id: str,
@@ -39,8 +36,6 @@ def create_consultation(
     name: Optional[str] = None,
     status: str = "active",
 ) -> Dict:
-    """Create a new consultation record and auto-unarchive patient if needed."""
-    # Auto-unarchive patient if they are archived
     unarchive_patient(patient_id)
     
     with get_conn() as conn:
@@ -68,9 +63,7 @@ def create_consultation(
         "created_at": row[5],
     }
 
-
 def get_consultation(consultation_id: str) -> Optional[Dict]:
-    """Get a single consultation by ID."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -96,14 +89,12 @@ def get_consultation(consultation_id: str) -> Optional[Dict]:
         "updated_at": row[6],
     }
 
-
 def list_consultations(
     *,
     patient_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 100,
 ) -> List[Dict]:
-    """List consultations with optional filters."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             query = """
@@ -139,9 +130,7 @@ def list_consultations(
         for r in rows
     ]
 
-
 def update_consultation_status(consultation_id: str, status: str) -> bool:
-    """Update consultation status."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -157,7 +146,6 @@ def update_consultation_status(consultation_id: str, status: str) -> bool:
     
     return affected > 0
 
-
 def update_consultation(
     consultation_id: str,
     *,
@@ -165,7 +153,6 @@ def update_consultation(
     status: Optional[str] = None,
     consultation_time: Optional[datetime] = None,
 ) -> Optional[Dict]:
-    """Update consultation information (partial updates supported)."""
     updates = []
     params = []
     
@@ -214,9 +201,7 @@ def update_consultation(
         "updated_at": row[6],
     }
 
-
 def delete_consultation(consultation_id: str) -> bool:
-    """Soft delete a consultation by setting status to canceled."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(

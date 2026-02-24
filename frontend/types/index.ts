@@ -91,7 +91,6 @@ export interface DocumentDetail {
   content: Record<string, any>;
 }
 
-// Patient changes since last visit
 export interface NewDocument {
   doc_id: string;
   document_type: string;
@@ -124,7 +123,6 @@ export interface PatientChanges {
   new_imaging: NewImaging[];
 }
 
-// Canvas types
 export interface CanvasSections {
   summary?: string;
   red_flags?: string;
@@ -143,7 +141,4 @@ export interface Canvas {
   finalized?: boolean;
 }
 
-// Re-export order types
-export * from './orders';
 export * from './default-templates';
-export * from './voice';

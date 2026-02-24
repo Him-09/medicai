@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse, Response
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
+import shutil
+import uuid
 
 from app.schemas.documents import (
     UploadOut, 
@@ -16,7 +18,6 @@ from app.schemas.documents import (
     PendingDocumentsResponse,
     DuplicateDocumentResponse
 )
-from app.services.ingestion_service import save_upload_to_raw, ingest_file
 from medicai.storage.file_store import FileStore
 from medicai.storage.postgres import get_conn
 from app.auth import get_current_user
@@ -27,6 +28,17 @@ router = APIRouter(prefix="/api/patients", tags=["documents"])
 documents_router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 _file_store = FileStore()
+
+RAW_DIR = Path("data/raw")
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+def _save_upload(patient_id: str, file: UploadFile) -> Path:
+    patient_dir = RAW_DIR / patient_id
+    patient_dir.mkdir(parents=True, exist_ok=True)
+    dest = patient_dir / file.filename
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return dest
 
 @router.post("/{patient_id}/documents:upload", response_model=UploadOut)
 def upload_document(
@@ -41,10 +53,8 @@ def upload_document(
     if not file or not file.filename:
         raise HTTPException(400, "file is required")
     
-    # Validate file type and size
     validate_upload(file)
 
-    # Check for duplicate document by filename
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -57,7 +67,6 @@ def upload_document(
                 
                 if existing:
                     existing_doc_id, existing_patient_id = existing
-                    # Document already exists - return conflict with details
                     raise HTTPException(
                         status_code=409,
                         detail={
@@ -70,34 +79,44 @@ def upload_document(
     except HTTPException:
         raise
     except Exception:
-        pass  # Continue with upload if check fails
+        pass
 
-    raw_path = save_upload_to_raw(patient_id, file)
-    doc, processed_path = ingest_file(patient_id, raw_path)
+    raw_path = _save_upload(patient_id, file)
     
-    # Audit the upload
-    audit_event(user["id"], DOC_UPLOAD, patient_id=patient_id, metadata={"doc_id": doc.doc_id})
+    doc_id = str(uuid.uuid4())
+    suffix = Path(file.filename).suffix.lower()
+    doc_type = "lab_report" if suffix == ".pdf" else "document"
+    
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO documents (doc_id, patient_id, document_type, source_file_path, review_status)
+                    VALUES (%s, %s, %s, %s, 'pending')
+                """, (doc_id, patient_id, doc_type, str(raw_path)))
+                conn.commit()
+    except Exception:
+        pass
+    
+    audit_event(user["id"], DOC_UPLOAD, patient_id=patient_id, metadata={"doc_id": doc_id})
 
     return UploadOut(
         patient_id=patient_id,
-        doc_id=doc.doc_id,
-        document_type=doc.document_type,
-        stored_processed_path=str(processed_path),
+        doc_id=doc_id,
+        document_type=doc_type,
+        stored_processed_path=str(raw_path),
         source_file_path=str(raw_path),
     )
-
 
 @router.get("/{patient_id}/documents", response_model=List[DocumentListItem])
 def list_patient_documents(
     patient_id: str,
     review_status: Optional[str] = Query(None, description="Filter by review status (pending or reviewed)")
 ):
-    """List all documents for a patient with optional review status filter."""
     patient_id = patient_id.strip()
     if not patient_id:
         raise HTTPException(400, "patient_id is required")
 
-    # Query from PostgreSQL for review status
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -134,7 +153,6 @@ def list_patient_documents(
                     ))
                 return result
     except Exception as e:
-        # Fallback to FileStore if DB query fails
         documents = _file_store.load_by_patient(patient_id)
         result = []
         for doc in documents:
@@ -150,10 +168,8 @@ def list_patient_documents(
             ))
         return result
 
-
 @documents_router.get("/pending/count", response_model=PendingCountResponse)
 def get_pending_count():
-    """Get count of all pending documents across all patients."""
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -167,15 +183,12 @@ def get_pending_count():
     except Exception as e:
         raise HTTPException(500, f"Failed to get pending count: {str(e)}")
 
-
 @documents_router.get("/pending", response_model=PendingDocumentsResponse)
 def get_pending_documents(limit: int = Query(5, description="Max number of documents to return")):
-    """Get pending documents with details for triage list."""
     import json
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Get total count
                 cur.execute("""
                     SELECT COUNT(*) 
                     FROM documents 
@@ -183,7 +196,6 @@ def get_pending_documents(limit: int = Query(5, description="Max number of docum
                 """)
                 total_count = cur.fetchone()[0]
                 
-                # Get pending documents with patient info and summary
                 cur.execute("""
                     SELECT 
                         d.doc_id,
@@ -206,15 +218,12 @@ def get_pending_documents(limit: int = Query(5, description="Max number of docum
                 for row in rows:
                     doc_id, patient_id, patient_name, doc_type, content_json, date_of_service, created_at = row
                     
-                    # Extract summary from content
                     summary = None
                     if content_json:
                         try:
                             content = json.loads(content_json) if isinstance(content_json, str) else content_json
                             
-                            # Try to get meaningful summary based on document type
                             if doc_type and 'lab' in doc_type.lower():
-                                # Look for abnormal results
                                 tests = content.get('tests', [])
                                 abnormals = [t for t in tests if t.get('flag') in ['H', 'L', 'high', 'low']]
                                 if abnormals:
@@ -258,15 +267,12 @@ def get_pending_documents(limit: int = Query(5, description="Max number of docum
         print(f"Error getting pending documents: {traceback.format_exc()}")
         raise HTTPException(500, f"Failed to get pending documents: {str(e)}")
 
-
 @documents_router.get("/{doc_id}", response_model=DocumentDetail)
 def get_document_by_id(doc_id: str):
-    """Get full document details by document ID."""
     doc_id = doc_id.strip()
     if not doc_id:
         raise HTTPException(400, "doc_id is required")
 
-    # Get review status from DB
     review_status = 'pending'
     reviewed_at = None
     try:
@@ -281,13 +287,12 @@ def get_document_by_id(doc_id: str):
                 if row:
                     review_status, reviewed_at = row
     except Exception:
-        pass  # Use defaults if query fails
+        pass
 
     document = _file_store.load(doc_id)
     if not document:
         raise HTTPException(404, f"Document {doc_id} not found")
 
-    # Return full document detail
     return DocumentDetail(
         doc_id=document.doc_id,
         patient_id=document.patient_id,
@@ -301,15 +306,12 @@ def get_document_by_id(doc_id: str):
         source_file_url=f"/api/documents/{doc_id}/raw",
     )
 
-
 @documents_router.get("/{doc_id}/raw")
 def get_document_raw_file(doc_id: str):
-    """Serve the raw document file for viewing."""
     doc_id = doc_id.strip()
     if not doc_id:
         raise HTTPException(400, "doc_id is required")
     
-    # Get source file path from DB
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -326,7 +328,6 @@ def get_document_raw_file(doc_id: str):
                 if not source_path.exists():
                     raise HTTPException(404, f"Document file does not exist: {source_path}")
                 
-                # Determine media type based on file extension
                 media_type_map = {
                     '.pdf': 'application/pdf',
                     '.png': 'image/png',
@@ -337,7 +338,6 @@ def get_document_raw_file(doc_id: str):
                 }
                 media_type = media_type_map.get(source_path.suffix.lower(), 'application/octet-stream')
                 
-                # Return file with inline disposition for viewing
                 return FileResponse(
                     path=str(source_path),
                     media_type=media_type,
@@ -350,10 +350,8 @@ def get_document_raw_file(doc_id: str):
     except Exception as e:
         raise HTTPException(500, f"Failed to retrieve document file: {str(e)}")
 
-
 @documents_router.patch("/{doc_id}")
 def update_document_review_status(doc_id: str, payload: DocumentReviewUpdate):
-    """Mark a document as reviewed or pending."""
     doc_id = doc_id.strip()
     if not doc_id:
         raise HTTPException(400, "doc_id is required")
@@ -364,12 +362,10 @@ def update_document_review_status(doc_id: str, payload: DocumentReviewUpdate):
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Check if document exists
                 cur.execute("SELECT doc_id FROM documents WHERE doc_id = %s", (doc_id,))
                 if not cur.fetchone():
                     raise HTTPException(404, f"Document {doc_id} not found")
                 
-                # Update review status
                 if payload.review_status == 'reviewed':
                     cur.execute("""
                         UPDATE documents 
@@ -385,7 +381,6 @@ def update_document_review_status(doc_id: str, payload: DocumentReviewUpdate):
                 
                 conn.commit()
                 
-                # Get updated values
                 cur.execute("""
                     SELECT review_status, reviewed_at 
                     FROM documents 
@@ -404,10 +399,8 @@ def update_document_review_status(doc_id: str, payload: DocumentReviewUpdate):
     except Exception as e:
         raise HTTPException(500, f"Failed to update document: {str(e)}")
 
-
 @documents_router.patch("/{doc_id}/reassign")
 def reassign_document(doc_id: str, payload: DocumentUpdateIn):
-    """Reassign a document to another patient."""
     doc_id = doc_id.strip()
     if not doc_id:
         raise HTTPException(400, "doc_id is required")
@@ -418,7 +411,6 @@ def reassign_document(doc_id: str, payload: DocumentUpdateIn):
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Check if document exists
                 cur.execute("SELECT patient_id FROM documents WHERE doc_id = %s", (doc_id,))
                 row = cur.fetchone()
                 if not row:
@@ -426,19 +418,16 @@ def reassign_document(doc_id: str, payload: DocumentUpdateIn):
                 
                 old_patient_id = row[0]
                 
-                # Check if new patient exists
                 cur.execute("SELECT patient_id FROM patients WHERE patient_id = %s", (payload.patient_id,))
                 if not cur.fetchone():
                     raise HTTPException(404, f"Patient {payload.patient_id} not found")
                 
-                # Update document patient_id and reset review status
                 cur.execute("""
                     UPDATE documents 
                     SET patient_id = %s, review_status = 'pending', reviewed_at = NULL
                     WHERE doc_id = %s
                 """, (payload.patient_id, doc_id))
                 
-                # Update related lab_results and radiology_reports
                 cur.execute("""
                     UPDATE lab_results 
                     SET patient_id = %s
@@ -464,10 +453,8 @@ def reassign_document(doc_id: str, payload: DocumentUpdateIn):
     except Exception as e:
         raise HTTPException(500, f"Failed to reassign document: {str(e)}")
 
-
 @documents_router.delete("/{doc_id}")
 def delete_document(doc_id: str, user: Dict[str, Any] = Depends(get_current_user)):
-    """Delete a document and its related data."""
     doc_id = doc_id.strip()
     if not doc_id:
         raise HTTPException(400, "doc_id is required")
@@ -475,7 +462,6 @@ def delete_document(doc_id: str, user: Dict[str, Any] = Depends(get_current_user
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Check if document exists
                 cur.execute("SELECT patient_id FROM documents WHERE doc_id = %s", (doc_id,))
                 row = cur.fetchone()
                 if not row:
@@ -483,7 +469,6 @@ def delete_document(doc_id: str, user: Dict[str, Any] = Depends(get_current_user
                 
                 patient_id = row[0]
                 
-                # Audit the delete BEFORE deleting
                 audit_event(
                     user["id"], 
                     DOC_DELETE, 
@@ -491,13 +476,10 @@ def delete_document(doc_id: str, user: Dict[str, Any] = Depends(get_current_user
                     metadata={"doc_id": doc_id}
                 )
                 
-                # Delete related lab_results
                 cur.execute("DELETE FROM lab_results WHERE doc_id = %s", (doc_id,))
                 
-                # Delete related radiology_reports
                 cur.execute("DELETE FROM radiology_reports WHERE doc_id = %s", (doc_id,))
                 
-                # Delete document
                 cur.execute("DELETE FROM documents WHERE doc_id = %s", (doc_id,))
                 
                 conn.commit()
@@ -512,10 +494,8 @@ def delete_document(doc_id: str, user: Dict[str, Any] = Depends(get_current_user
     except Exception as e:
         raise HTTPException(500, f"Failed to delete document: {str(e)}")
 
-
 @documents_router.patch("/{doc_id}/extracted-data")
 def update_document_extracted_data(doc_id: str, payload: DocumentExtractedDataUpdate):
-    """Update the extracted data for a document (allow doctor to correct extraction errors)."""
     import json
     
     doc_id = doc_id.strip()
@@ -525,18 +505,15 @@ def update_document_extracted_data(doc_id: str, payload: DocumentExtractedDataUp
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
-                # Check if document exists
                 cur.execute("SELECT doc_id FROM documents WHERE doc_id = %s", (doc_id,))
                 row = cur.fetchone()
                 if not row:
                     raise HTTPException(404, f"Document {doc_id} not found")
                 
-                # Load current payload from database and update it
                 cur.execute("SELECT payload FROM documents WHERE doc_id = %s", (doc_id,))
                 current_payload = cur.fetchone()[0]
                 
                 if current_payload:
-                    # Update metadata and structured directly in payload (they're at root level, not under 'content')
                     if 'metadata' in payload.content:
                         if 'metadata' not in current_payload:
                             current_payload['metadata'] = {}
@@ -546,7 +523,6 @@ def update_document_extracted_data(doc_id: str, payload: DocumentExtractedDataUp
                             current_payload['structured'] = {}
                         current_payload['structured'].update(payload.content['structured'])
                     
-                    # Update database
                     cur.execute("""
                         UPDATE documents 
                         SET payload = %s::jsonb 
@@ -554,7 +530,6 @@ def update_document_extracted_data(doc_id: str, payload: DocumentExtractedDataUp
                     """, (json.dumps(current_payload, ensure_ascii=False), doc_id))
                     conn.commit()
                     
-                    # Also update the file store (reload to get fresh copy)
                     document = _file_store.load(doc_id)
                     if document:
                         if 'metadata' in payload.content and hasattr(document, 'metadata'):
